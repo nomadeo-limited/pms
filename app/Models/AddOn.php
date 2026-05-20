@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Models;
+
+use App\Tenant\TenantScope;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+
+class AddOn extends Model
+{
+    use HasFactory, HasUuids;
+
+    protected $table = 'add_ons';
+
+    protected $fillable = [
+        'organizer_id', 'property_id', 'name', 'category',
+        'description', 'price', 'currency', 'max_per_booking', 'is_active',
+    ];
+
+    protected function casts(): array
+    {
+        return ['is_active' => 'boolean', 'price' => 'decimal:2'];
+    }
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new TenantScope());
+    }
+
+    public function property(): BelongsTo
+    {
+        return $this->belongsTo(Property::class);
+    }
+
+    public function programs(): BelongsToMany
+    {
+        return $this->belongsToMany(Program::class, 'program_add_ons')
+            ->withPivot('is_default')
+            ->withTimestamps();
+    }
+}

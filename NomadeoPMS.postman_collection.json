@@ -1,0 +1,1143 @@
+{
+    "info": {
+        "_postman_id": "nomadeopms-v1",
+        "name": "NomadeoPMS",
+        "description": "Complete API collection for NomadeoPMS — multi-tenant PMS for adventure travel businesses.\n\n**Quick start:**\n1. Set the `base_url` variable (default: `http://localhost:8001/api/v1`)\n2. Run **Auth → Login** — `{{token}}` is saved automatically\n3. Run **Organizers → Create Organizer** (super_admin) — `{{organizer_id}}` is saved\n4. Continue through each folder in order; create requests auto-save IDs into variables\n\n**Auto-saved variables:** `token`, `organizer_id`, `property_id`, `property_slug`, `room_type_id`, `unit_id`, `program_id`, `add_on_id`, `customer_id`, `booking_id`, `pricing_rule_id`, `discount_id`, `availability_rule_id`, `booking_rule_id`, `payment_rule_id`, `review_id`, `staff_user_id`, `integration_token`\n\n**Default super admin:** `admin@nomadeo.es` / `secret`",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [{"key": "token", "value": "{{token}}", "type": "string"}]
+    },
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    "pm.request.headers.upsert({ key: 'Accept', value: 'application/json' });",
+                    "const orgId = pm.collectionVariables.get('organizer_id');",
+                    "if (orgId) {",
+                    "    pm.request.headers.upsert({ key: 'X-Organizer-ID', value: orgId });",
+                    "}"
+                ]
+            }
+        }
+    ],
+    "variable": [
+        {"key": "base_url",            "value": "http://localhost:8001/api/v1", "type": "string"},
+        {"key": "token",               "value": "", "type": "string"},
+        {"key": "organizer_id",        "value": "", "type": "string"},
+        {"key": "property_id",         "value": "", "type": "string"},
+        {"key": "property_slug",       "value": "", "type": "string"},
+        {"key": "room_type_id",        "value": "", "type": "string"},
+        {"key": "unit_id",             "value": "", "type": "string"},
+        {"key": "program_id",          "value": "", "type": "string"},
+        {"key": "add_on_id",           "value": "", "type": "string"},
+        {"key": "customer_id",         "value": "", "type": "string"},
+        {"key": "booking_id",          "value": "", "type": "string"},
+        {"key": "pricing_rule_id",     "value": "", "type": "string"},
+        {"key": "discount_id",         "value": "", "type": "string"},
+        {"key": "availability_rule_id","value": "", "type": "string"},
+        {"key": "booking_rule_id",     "value": "", "type": "string"},
+        {"key": "payment_rule_id",     "value": "", "type": "string"},
+        {"key": "review_id",           "value": "", "type": "string"},
+        {"key": "staff_user_id",       "value": "", "type": "string"},
+        {"key": "integration_token",   "value": "", "type": "string"}
+    ],
+    "item": [
+
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Login",
+                    "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    pm.collectionVariables.set('token', pm.response.json().access_token);",
+                        "    console.log('Token saved.');",
+                        "}"
+                    ]}}],
+                    "request": {
+                        "auth": {"type": "noauth"},
+                        "method": "POST",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"email\": \"admin@nomadeo.es\",\n    \"password\": \"secret\"\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"]}
+                    }
+                },
+                {
+                    "name": "Me",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"]}
+                    }
+                },
+                {
+                    "name": "Refresh Token",
+                    "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                        "if (pm.response.code === 200) {",
+                        "    pm.collectionVariables.set('token', pm.response.json().access_token);",
+                        "}"
+                    ]}}],
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth", "refresh"]}
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"]}
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "Organizers",
+            "description": "Super-admin only. Manage organizer accounts.",
+            "item": [
+                {
+                    "name": "List Organizers",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/organizers?per_page=15",
+                            "host": ["{{base_url}}"], "path": ["organizers"],
+                            "query": [{"key": "per_page", "value": "15"}]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Organizer",
+                    "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                        "if (pm.response.code === 201) {",
+                        "    pm.collectionVariables.set('organizer_id', pm.response.json().id);",
+                        "    console.log('organizer_id saved:', pm.response.json().id);",
+                        "}"
+                    ]}}],
+                    "request": {
+                        "method": "POST",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"name\": \"Surf Paradise Camp\",\n    \"email\": \"surf@paradise.com\",\n    \"slug\": \"surf-paradise\",\n    \"country\": \"PT\",\n    \"currency\": \"EUR\",\n    \"timezone\": \"Europe/Lisbon\",\n    \"locale\": \"en\",\n    \"description\": \"The best surf camp in Portugal\"\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/organizers", "host": ["{{base_url}}"], "path": ["organizers"]}
+                    }
+                },
+                {
+                    "name": "Get Organizer",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/organizers/{{organizer_id}}", "host": ["{{base_url}}"], "path": ["organizers", "{{organizer_id}}"]}
+                    }
+                },
+                {
+                    "name": "Update Organizer",
+                    "request": {
+                        "method": "PUT",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"name\": \"Surf Paradise Camp (Updated)\",\n    \"is_active\": true\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/organizers/{{organizer_id}}", "host": ["{{base_url}}"], "path": ["organizers", "{{organizer_id}}"]}
+                    }
+                },
+                {
+                    "name": "Delete Organizer",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/organizers/{{organizer_id}}", "host": ["{{base_url}}"], "path": ["organizers", "{{organizer_id}}"]}
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "Properties",
+            "description": "Manage properties (surf camps, yoga retreats, etc.) for the current organizer.",
+            "item": [
+                {
+                    "name": "List Properties",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/properties", "host": ["{{base_url}}"], "path": ["properties"]}
+                    }
+                },
+                {
+                    "name": "Create Property",
+                    "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                        "if (pm.response.code === 201) {",
+                        "    const json = pm.response.json();",
+                        "    pm.collectionVariables.set('property_id', json.id);",
+                        "    pm.collectionVariables.set('property_slug', json.slug || '');",
+                        "    console.log('property_id saved:', json.id);",
+                        "}"
+                    ]}}],
+                    "request": {
+                        "method": "POST",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"name\": \"Main Surf House\",\n    \"slug\": \"main-surf-house\",\n    \"type\": \"surf_camp\",\n    \"address\": \"Rua da Praia 1\",\n    \"city\": \"Peniche\",\n    \"country\": \"PT\",\n    \"currency\": \"EUR\",\n    \"timezone\": \"Europe/Lisbon\",\n    \"description\": \"Our flagship surf camp on the Atlantic coast\",\n    \"amenities\": [\"wifi\", \"pool\", \"surf_board_rental\"]\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/properties", "host": ["{{base_url}}"], "path": ["properties"]}
+                    }
+                },
+                {
+                    "name": "Get Property",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/properties/{{property_id}}", "host": ["{{base_url}}"], "path": ["properties", "{{property_id}}"]}
+                    }
+                },
+                {
+                    "name": "Update Property",
+                    "request": {
+                        "method": "PUT",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"description\": \"Updated description for the surf house\",\n    \"is_active\": true\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/properties/{{property_id}}", "host": ["{{base_url}}"], "path": ["properties", "{{property_id}}"]}
+                    }
+                },
+                {
+                    "name": "Delete Property",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/properties/{{property_id}}", "host": ["{{base_url}}"], "path": ["properties", "{{property_id}}"]}
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "Inventory",
+            "description": "Manage room types and bookable units within a property.",
+            "item": [
+                {
+                    "name": "Room Types",
+                    "item": [
+                        {
+                            "name": "List Room Types",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/room-types?property_id={{property_id}}",
+                                    "host": ["{{base_url}}"], "path": ["room-types"],
+                                    "query": [{"key": "property_id", "value": "{{property_id}}"}]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Room Type",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('room_type_id', pm.response.json().id);",
+                                "    console.log('room_type_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"property_id\": \"{{property_id}}\",\n    \"name\": \"Shared Dorm 6-Bed\",\n    \"category\": \"shared_dorm\",\n    \"max_capacity\": 6,\n    \"description\": \"Comfortable shared dorm with sea view\"\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/room-types", "host": ["{{base_url}}"], "path": ["room-types"]}
+                            }
+                        },
+                        {
+                            "name": "Get Room Type",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/room-types/{{room_type_id}}", "host": ["{{base_url}}"], "path": ["room-types", "{{room_type_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Update Room Type",
+                            "request": {
+                                "method": "PUT",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"name\": \"Shared Dorm 8-Bed\",\n    \"max_capacity\": 8\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/room-types/{{room_type_id}}", "host": ["{{base_url}}"], "path": ["room-types", "{{room_type_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Delete Room Type",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/room-types/{{room_type_id}}", "host": ["{{base_url}}"], "path": ["room-types", "{{room_type_id}}"]}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Units",
+                    "item": [
+                        {
+                            "name": "List Units",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/units?property_id={{property_id}}",
+                                    "host": ["{{base_url}}"], "path": ["units"],
+                                    "query": [{"key": "property_id", "value": "{{property_id}}"}]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Check Unit Availability",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/units/availability?property_id={{property_id}}&check_in_date=2027-08-01&check_out_date=2027-08-08",
+                                    "host": ["{{base_url}}"], "path": ["units", "availability"],
+                                    "query": [
+                                        {"key": "property_id", "value": "{{property_id}}"},
+                                        {"key": "check_in_date", "value": "2027-08-01"},
+                                        {"key": "check_out_date", "value": "2027-08-08"}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Unit",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('unit_id', pm.response.json().id);",
+                                "    console.log('unit_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"property_id\": \"{{property_id}}\",\n    \"room_type_id\": \"{{room_type_id}}\",\n    \"name\": \"Bunk 1A\",\n    \"bed_category\": \"bunk_bed\",\n    \"capacity\": 1\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/units", "host": ["{{base_url}}"], "path": ["units"]}
+                            }
+                        },
+                        {
+                            "name": "Get Unit",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/units/{{unit_id}}", "host": ["{{base_url}}"], "path": ["units", "{{unit_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Update Unit",
+                            "request": {
+                                "method": "PUT",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"name\": \"Bunk 1A (Lower)\",\n    \"is_active\": true\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/units/{{unit_id}}", "host": ["{{base_url}}"], "path": ["units", "{{unit_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Delete Unit",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/units/{{unit_id}}", "host": ["{{base_url}}"], "path": ["units", "{{unit_id}}"]}
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            "name": "Programs",
+            "description": "Manage programs (surf camps, yoga retreats, etc.) and their add-ons.",
+            "item": [
+                {
+                    "name": "Programs",
+                    "item": [
+                        {
+                            "name": "List Programs",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/programs?property_id={{property_id}}&per_page=15",
+                                    "host": ["{{base_url}}"], "path": ["programs"],
+                                    "query": [
+                                        {"key": "property_id", "value": "{{property_id}}"},
+                                        {"key": "per_page", "value": "15"}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Program",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('program_id', pm.response.json().id);",
+                                "    console.log('program_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"property_id\": \"{{property_id}}\",\n    \"name\": \"7-Day Beginner Surf Camp\",\n    \"type\": \"surf_camp\",\n    \"duration_days\": 7,\n    \"description\": \"All-inclusive beginner surf camp including accommodation, meals and daily lessons\"\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/programs", "host": ["{{base_url}}"], "path": ["programs"]}
+                            }
+                        },
+                        {
+                            "name": "Get Program",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/programs/{{program_id}}", "host": ["{{base_url}}"], "path": ["programs", "{{program_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Update Program",
+                            "request": {
+                                "method": "PUT",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"name\": \"7-Day Beginner Surf Camp (2027)\",\n    \"is_active\": true\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/programs/{{program_id}}", "host": ["{{base_url}}"], "path": ["programs", "{{program_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Delete Program",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/programs/{{program_id}}", "host": ["{{base_url}}"], "path": ["programs", "{{program_id}}"]}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Add-Ons",
+                    "item": [
+                        {
+                            "name": "List Add-Ons",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/add-ons?property_id={{property_id}}",
+                                    "host": ["{{base_url}}"], "path": ["add-ons"],
+                                    "query": [{"key": "property_id", "value": "{{property_id}}"}]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Add-On",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('add_on_id', pm.response.json().id);",
+                                "    console.log('add_on_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"property_id\": \"{{property_id}}\",\n    \"name\": \"Private Surf Lesson (1h)\",\n    \"category\": \"surf_class\",\n    \"price\": 60.00,\n    \"currency\": \"EUR\",\n    \"description\": \"One-on-one surf coaching with a certified instructor\",\n    \"max_per_booking\": 5\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/add-ons", "host": ["{{base_url}}"], "path": ["add-ons"]}
+                            }
+                        },
+                        {
+                            "name": "Get Add-On",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/add-ons/{{add_on_id}}", "host": ["{{base_url}}"], "path": ["add-ons", "{{add_on_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Update Add-On",
+                            "request": {
+                                "method": "PUT",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"price\": 65.00,\n    \"is_active\": true\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/add-ons/{{add_on_id}}", "host": ["{{base_url}}"], "path": ["add-ons", "{{add_on_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Attach Add-On to Program",
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"is_default\": false\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/programs/{{program_id}}/add-ons/{{add_on_id}}", "host": ["{{base_url}}"], "path": ["programs", "{{program_id}}", "add-ons", "{{add_on_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Detach Add-On from Program",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/programs/{{program_id}}/add-ons/{{add_on_id}}", "host": ["{{base_url}}"], "path": ["programs", "{{program_id}}", "add-ons", "{{add_on_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Delete Add-On",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/add-ons/{{add_on_id}}", "host": ["{{base_url}}"], "path": ["add-ons", "{{add_on_id}}"]}
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            "name": "Availability",
+            "description": "Availability calendar, check endpoint, availability rules, and booking rules.",
+            "item": [
+                {
+                    "name": "Calendar & Check",
+                    "item": [
+                        {
+                            "name": "Get Availability Calendar",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/availability?property_id={{property_id}}&start_date=2027-08-01&end_date=2027-08-31",
+                                    "host": ["{{base_url}}"], "path": ["availability"],
+                                    "query": [
+                                        {"key": "property_id", "value": "{{property_id}}"},
+                                        {"key": "start_date", "value": "2027-08-01"},
+                                        {"key": "end_date", "value": "2027-08-31"}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Check Availability",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/availability/check?property_id={{property_id}}&check_in_date=2027-08-01&check_out_date=2027-08-08&min_units=1",
+                                    "host": ["{{base_url}}"], "path": ["availability", "check"],
+                                    "query": [
+                                        {"key": "property_id", "value": "{{property_id}}"},
+                                        {"key": "check_in_date", "value": "2027-08-01"},
+                                        {"key": "check_out_date", "value": "2027-08-08"},
+                                        {"key": "min_units", "value": "1"}
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Availability Rules",
+                    "item": [
+                        {
+                            "name": "List Availability Rules",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/availability/rules", "host": ["{{base_url}}"], "path": ["availability", "rules"]}
+                            }
+                        },
+                        {
+                            "name": "Create Availability Rule",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('availability_rule_id', pm.response.json().id);",
+                                "    console.log('availability_rule_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"ruleable_type\": \"unit\",\n    \"ruleable_id\": \"{{unit_id}}\",\n    \"rule_type\": \"date_range\",\n    \"start_date\": \"2027-12-24\",\n    \"end_date\": \"2028-01-02\",\n    \"capacity\": 0\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/availability/rules", "host": ["{{base_url}}"], "path": ["availability", "rules"]}
+                            }
+                        },
+                        {
+                            "name": "Delete Availability Rule",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/availability/rules/{{availability_rule_id}}", "host": ["{{base_url}}"], "path": ["availability", "rules", "{{availability_rule_id}}"]}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Booking Rules",
+                    "item": [
+                        {
+                            "name": "List Booking Rules",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/booking-rules", "host": ["{{base_url}}"], "path": ["booking-rules"]}
+                            }
+                        },
+                        {
+                            "name": "Create Booking Rule",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('booking_rule_id', pm.response.json().id);",
+                                "    console.log('booking_rule_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"property_id\": \"{{property_id}}\",\n    \"min_nights\": 3,\n    \"max_nights\": 21,\n    \"check_in_days\": \"0111110\",\n    \"min_advance_days\": 1,\n    \"max_advance_days\": 365\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/booking-rules", "host": ["{{base_url}}"], "path": ["booking-rules"]}
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            "name": "Pricing",
+            "description": "Price calculation, pricing rules (season rates), and discount codes.",
+            "item": [
+                {
+                    "name": "Calculate",
+                    "item": [
+                        {
+                            "name": "Calculate Price",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/pricing/calculate?priceable_type=unit&priceable_id={{unit_id}}&check_in_date=2027-08-01&check_out_date=2027-08-08&guests=2&discount_code=SURF20",
+                                    "host": ["{{base_url}}"], "path": ["pricing", "calculate"],
+                                    "query": [
+                                        {"key": "priceable_type", "value": "unit"},
+                                        {"key": "priceable_id", "value": "{{unit_id}}"},
+                                        {"key": "check_in_date", "value": "2027-08-01"},
+                                        {"key": "check_out_date", "value": "2027-08-08"},
+                                        {"key": "guests", "value": "2"},
+                                        {"key": "discount_code", "value": "SURF20", "description": "Optional — remove if not testing discounts"}
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Pricing Rules",
+                    "item": [
+                        {
+                            "name": "List Pricing Rules",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/pricing-rules", "host": ["{{base_url}}"], "path": ["pricing-rules"]}
+                            }
+                        },
+                        {
+                            "name": "Create Pricing Rule",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('pricing_rule_id', pm.response.json().id);",
+                                "    console.log('pricing_rule_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"priceable_type\": \"unit\",\n    \"priceable_id\": \"{{unit_id}}\",\n    \"name\": \"High Season 2027\",\n    \"model\": \"per_night\",\n    \"amount\": 85.00,\n    \"currency\": \"EUR\",\n    \"start_date\": \"2027-06-01\",\n    \"end_date\": \"2027-09-30\",\n    \"priority\": 10\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/pricing-rules", "host": ["{{base_url}}"], "path": ["pricing-rules"]}
+                            }
+                        },
+                        {
+                            "name": "Update Pricing Rule",
+                            "request": {
+                                "method": "PUT",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"amount\": 95.00,\n    \"is_active\": true\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/pricing-rules/{{pricing_rule_id}}", "host": ["{{base_url}}"], "path": ["pricing-rules", "{{pricing_rule_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Delete Pricing Rule",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/pricing-rules/{{pricing_rule_id}}", "host": ["{{base_url}}"], "path": ["pricing-rules", "{{pricing_rule_id}}"]}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Discounts",
+                    "item": [
+                        {
+                            "name": "List Discounts",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/discounts", "host": ["{{base_url}}"], "path": ["discounts"]}
+                            }
+                        },
+                        {
+                            "name": "Create Discount",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('discount_id', pm.response.json().id);",
+                                "    console.log('discount_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"code\": \"SURF20\",\n    \"type\": \"percentage\",\n    \"value\": 20.0,\n    \"max_uses\": 100,\n    \"min_nights\": 3,\n    \"valid_from\": \"2027-01-01\",\n    \"valid_until\": \"2027-12-31\"\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/discounts", "host": ["{{base_url}}"], "path": ["discounts"]}
+                            }
+                        },
+                        {
+                            "name": "Delete Discount",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/discounts/{{discount_id}}", "host": ["{{base_url}}"], "path": ["discounts", "{{discount_id}}"]}
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            "name": "Customers",
+            "description": "Customer profiles and booking reviews.",
+            "item": [
+                {
+                    "name": "Customers",
+                    "item": [
+                        {
+                            "name": "List Customers",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/customers?per_page=15",
+                                    "host": ["{{base_url}}"], "path": ["customers"],
+                                    "query": [
+                                        {"key": "per_page", "value": "15"},
+                                        {"key": "search", "value": "", "disabled": true, "description": "Search by name or email"}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Customer",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('customer_id', pm.response.json().id);",
+                                "    console.log('customer_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"first_name\": \"João\",\n    \"last_name\": \"Silva\",\n    \"email\": \"joao.silva@example.com\",\n    \"phone\": \"+351912345678\",\n    \"nationality\": \"PT\",\n    \"preferred_locale\": \"pt\",\n    \"preferred_currency\": \"EUR\"\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/customers", "host": ["{{base_url}}"], "path": ["customers"]}
+                            }
+                        },
+                        {
+                            "name": "Get Customer",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/customers/{{customer_id}}", "host": ["{{base_url}}"], "path": ["customers", "{{customer_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Update Customer",
+                            "request": {
+                                "method": "PUT",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"phone\": \"+351987654321\",\n    \"dietary_restrictions\": \"Vegetarian\",\n    \"notes\": \"Intermediate surfer, prefers early morning sessions\"\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/customers/{{customer_id}}", "host": ["{{base_url}}"], "path": ["customers", "{{customer_id}}"]}
+                            }
+                        },
+                        {
+                            "name": "Delete Customer",
+                            "request": {
+                                "method": "DELETE",
+                                "header": [],
+                                "url": {"raw": "{{base_url}}/customers/{{customer_id}}", "host": ["{{base_url}}"], "path": ["customers", "{{customer_id}}"]}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Reviews",
+                    "item": [
+                        {
+                            "name": "List Reviews",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/reviews?published_only=false",
+                                    "host": ["{{base_url}}"], "path": ["reviews"],
+                                    "query": [{"key": "published_only", "value": "false"}]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Review",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('review_id', pm.response.json().id);",
+                                "    console.log('review_id saved:', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"booking_id\": \"{{booking_id}}\",\n    \"customer_id\": \"{{customer_id}}\",\n    \"overall_rating\": 5,\n    \"accommodation_rating\": 5,\n    \"program_rating\": 4,\n    \"staff_rating\": 5,\n    \"value_rating\": 4,\n    \"comment\": \"Absolutely amazing experience! The instructors were world-class and the accommodation was perfect.\",\n    \"is_published\": false\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/reviews", "host": ["{{base_url}}"], "path": ["reviews"]}
+                            }
+                        },
+                        {
+                            "name": "Publish Review",
+                            "request": {
+                                "method": "PUT",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"is_published\": true\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/reviews/{{review_id}}", "host": ["{{base_url}}"], "path": ["reviews", "{{review_id}}"]}
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+
+        {
+            "name": "Bookings",
+            "description": "Full booking lifecycle. Create bookings AFTER creating customers and units.",
+            "item": [
+                {
+                    "name": "List Bookings",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/bookings?property_id={{property_id}}&per_page=15",
+                            "host": ["{{base_url}}"], "path": ["bookings"],
+                            "query": [
+                                {"key": "property_id", "value": "{{property_id}}"},
+                                {"key": "per_page", "value": "15"},
+                                {"key": "status", "value": "confirmed", "disabled": true},
+                                {"key": "check_in_from", "value": "2027-01-01", "disabled": true},
+                                {"key": "check_in_to", "value": "2027-12-31", "disabled": true}
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Booking Calendar",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/bookings/calendar?property_id={{property_id}}&month=2027-08",
+                            "host": ["{{base_url}}"], "path": ["bookings", "calendar"],
+                            "query": [
+                                {"key": "property_id", "value": "{{property_id}}"},
+                                {"key": "month", "value": "2027-08"}
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Booking",
+                    "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                        "if (pm.response.code === 201) {",
+                        "    pm.collectionVariables.set('booking_id', pm.response.json().id);",
+                        "    console.log('booking_id saved:', pm.response.json().id);",
+                        "}"
+                    ]}}],
+                    "request": {
+                        "method": "POST",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"property_id\": \"{{property_id}}\",\n    \"customer_id\": \"{{customer_id}}\",\n    \"check_in_date\": \"2027-08-01\",\n    \"check_out_date\": \"2027-08-08\",\n    \"guests\": 2,\n    \"total_price\": 595.00,\n    \"currency\": \"EUR\",\n    \"source\": \"direct\",\n    \"notes\": \"Guest is a beginner surfer. Prefers ground floor room.\",\n    \"unit_ids\": [\n        {\n            \"unit_id\": \"{{unit_id}}\",\n            \"guests\": 2,\n            \"price_per_night\": 85.00\n        }\n    ]\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/bookings", "host": ["{{base_url}}"], "path": ["bookings"]}
+                    }
+                },
+                {
+                    "name": "Get Booking",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/bookings/{{booking_id}}", "host": ["{{base_url}}"], "path": ["bookings", "{{booking_id}}"]}
+                    }
+                },
+                {
+                    "name": "Update Booking Status",
+                    "request": {
+                        "method": "PUT",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"status\": \"confirmed\"\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/bookings/{{booking_id}}", "host": ["{{base_url}}"], "path": ["bookings", "{{booking_id}}"]}
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "Payments",
+            "description": "Record payments against bookings and manage payment rules (deposit schedules).",
+            "item": [
+                {
+                    "name": "List Payments for Booking",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/bookings/{{booking_id}}/payments", "host": ["{{base_url}}"], "path": ["bookings", "{{booking_id}}", "payments"]}
+                    }
+                },
+                {
+                    "name": "Record Payment",
+                    "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                        "if (pm.response.code === 201) {",
+                        "    pm.collectionVariables.set('payment_id', pm.response.json().id);",
+                        "    console.log('payment_id saved:', pm.response.json().id);",
+                        "}"
+                    ]}}],
+                    "request": {
+                        "method": "POST",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"amount\": 178.50,\n    \"currency\": \"EUR\",\n    \"method\": \"bank_transfer\",\n    \"status\": \"completed\",\n    \"notes\": \"30% deposit\"\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/bookings/{{booking_id}}/payments", "host": ["{{base_url}}"], "path": ["bookings", "{{booking_id}}", "payments"]}
+                    }
+                },
+                {
+                    "name": "List Payment Rules",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/payment-rules", "host": ["{{base_url}}"], "path": ["payment-rules"]}
+                    }
+                },
+                {
+                    "name": "Create Payment Rule",
+                    "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                        "if (pm.response.code === 201) {",
+                        "    pm.collectionVariables.set('payment_rule_id', pm.response.json().id);",
+                        "    console.log('payment_rule_id saved:', pm.response.json().id);",
+                        "}"
+                    ]}}],
+                    "request": {
+                        "method": "POST",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"property_id\": \"{{property_id}}\",\n    \"type\": \"deposit_then_balance\",\n    \"deposit_percentage\": 30,\n    \"balance_due_days_before\": 30\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/payment-rules", "host": ["{{base_url}}"], "path": ["payment-rules"]}
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "Staff",
+            "description": "Invite and manage staff members within the organizer account.",
+            "item": [
+                {
+                    "name": "List Staff",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/staff", "host": ["{{base_url}}"], "path": ["staff"]}
+                    }
+                },
+                {
+                    "name": "Invite Staff Member",
+                    "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                        "if (pm.response.code === 201) {",
+                        "    pm.collectionVariables.set('staff_user_id', pm.response.json().id);",
+                        "    console.log('staff_user_id saved:', pm.response.json().id);",
+                        "}"
+                    ]}}],
+                    "request": {
+                        "method": "POST",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"name\": \"Maria Santos\",\n    \"email\": \"maria.santos@surfparadise.com\",\n    \"role\": \"organizer_staff\"\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/staff/invite", "host": ["{{base_url}}"], "path": ["staff", "invite"]}
+                    }
+                },
+                {
+                    "name": "Update Staff Role",
+                    "request": {
+                        "method": "PUT",
+                        "header": [{"key": "Content-Type", "value": "application/json"}],
+                        "body": {"mode": "raw", "raw": "{\n    \"role\": \"organizer_admin\"\n}", "options": {"raw": {"language": "json"}}},
+                        "url": {"raw": "{{base_url}}/staff/{{staff_user_id}}/role", "host": ["{{base_url}}"], "path": ["staff", "{{staff_user_id}}", "role"]}
+                    }
+                },
+                {
+                    "name": "Remove Staff Member",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {"raw": "{{base_url}}/staff/{{staff_user_id}}", "host": ["{{base_url}}"], "path": ["staff", "{{staff_user_id}}"]}
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "Reporting",
+            "description": "Business analytics. All reports require start_date and end_date.",
+            "item": [
+                {
+                    "name": "Occupancy Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/reports/occupancy?start_date=2027-01-01&end_date=2027-12-31&property_id={{property_id}}",
+                            "host": ["{{base_url}}"], "path": ["reports", "occupancy"],
+                            "query": [
+                                {"key": "start_date", "value": "2027-01-01"},
+                                {"key": "end_date", "value": "2027-12-31"},
+                                {"key": "property_id", "value": "{{property_id}}"}
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Revenue Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/reports/revenue?start_date=2027-01-01&end_date=2027-12-31&property_id={{property_id}}",
+                            "host": ["{{base_url}}"], "path": ["reports", "revenue"],
+                            "query": [
+                                {"key": "start_date", "value": "2027-01-01"},
+                                {"key": "end_date", "value": "2027-12-31"},
+                                {"key": "property_id", "value": "{{property_id}}"}
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Booking Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/reports/bookings?start_date=2027-01-01&end_date=2027-12-31",
+                            "host": ["{{base_url}}"], "path": ["reports", "bookings"],
+                            "query": [
+                                {"key": "start_date", "value": "2027-01-01"},
+                                {"key": "end_date", "value": "2027-12-31"}
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Customer Stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/reports/customers?start_date=2027-01-01&end_date=2027-12-31",
+                            "host": ["{{base_url}}"], "path": ["reports", "customers"],
+                            "query": [
+                                {"key": "start_date", "value": "2027-01-01"},
+                                {"key": "end_date", "value": "2027-12-31"}
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+
+        {
+            "name": "Integration",
+            "description": "Nomadeo marketplace integration. Two sub-folders: Token Management (JWT) and Marketplace Endpoints (integration token).",
+            "item": [
+                {
+                    "name": "Token Management (JWT Auth)",
+                    "description": "Create integration tokens using normal JWT auth. The returned `token` value is shown once — save it as {{integration_token}}.",
+                    "item": [
+                        {
+                            "name": "Create Integration Token",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('integration_token', pm.response.json().token);",
+                                "    console.log('integration_token saved. Store securely — shown once only.');",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"name\": \"Nomadeo Marketplace Token\",\n    \"property_id\": \"{{property_id}}\"\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/integration/tokens", "host": ["{{base_url}}"], "path": ["integration", "tokens"]}
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Marketplace Endpoints (Integration Token)",
+                    "description": "These endpoints use {{integration_token}} as the Bearer token instead of {{token}}. Run 'Create Integration Token' first.",
+                    "auth": {
+                        "type": "bearer",
+                        "bearer": [{"key": "token", "value": "{{integration_token}}", "type": "string"}]
+                    },
+                    "item": [
+                        {
+                            "name": "Get Property Availability",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/integration/{{property_slug}}/availability?start_date=2027-08-01&end_date=2027-08-31",
+                                    "host": ["{{base_url}}"], "path": ["integration", "{{property_slug}}", "availability"],
+                                    "query": [
+                                        {"key": "start_date", "value": "2027-08-01"},
+                                        {"key": "end_date", "value": "2027-08-31"}
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Create Booking from Marketplace",
+                            "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": [
+                                "if (pm.response.code === 201) {",
+                                "    pm.collectionVariables.set('booking_id', pm.response.json().id);",
+                                "    console.log('booking_id saved (marketplace):', pm.response.json().id);",
+                                "}"
+                            ]}}],
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"check_in_date\": \"2027-09-01\",\n    \"check_out_date\": \"2027-09-08\",\n    \"guests\": 2,\n    \"total_price\": 595.00,\n    \"currency\": \"EUR\",\n    \"external_id\": \"NOMADEO-12345\",\n    \"customer\": {\n        \"first_name\": \"Anna\",\n        \"last_name\": \"Müller\",\n        \"email\": \"anna.muller@example.de\"\n    }\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/integration/{{property_slug}}/bookings", "host": ["{{base_url}}"], "path": ["integration", "{{property_slug}}", "bookings"]}
+                            }
+                        },
+                        {
+                            "name": "Upsert Customer from Marketplace",
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {"mode": "raw", "raw": "{\n    \"first_name\": \"Anna\",\n    \"last_name\": \"Müller\",\n    \"email\": \"anna.muller@example.de\",\n    \"phone\": \"+49301234567\",\n    \"nationality\": \"DE\",\n    \"external_id\": \"NOMADEO-CUS-99\"\n}", "options": {"raw": {"language": "json"}}},
+                                "url": {"raw": "{{base_url}}/integration/{{property_slug}}/customers", "host": ["{{base_url}}"], "path": ["integration", "{{property_slug}}", "customers"]}
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
+    ]
+}
