@@ -33,9 +33,12 @@ class ProgramController extends Controller
             content: new OA\JsonContent(required: ['property_id', 'name'],
                 properties: [
                     new OA\Property(property: 'property_id', type: 'string', format: 'uuid'),
+                    new OA\Property(property: 'room_type_id', type: 'string', format: 'uuid', description: 'Room type used by this program — enables automatic unit assignment on booking'),
                     new OA\Property(property: 'name', type: 'string'),
                     new OA\Property(property: 'type', type: 'string', enum: ['surf_camp', 'yoga_retreat', 'language_immersion', 'diving', 'hiking', 'climbing', 'wellness', 'other']),
                     new OA\Property(property: 'duration_days', type: 'integer'),
+                    new OA\Property(property: 'base_price', type: 'number', description: 'Fixed package price — used as total_price when booking without explicit total_price'),
+                    new OA\Property(property: 'currency', type: 'string', example: 'EUR'),
                     new OA\Property(property: 'description', type: 'string'),
                 ])),
         responses: [new OA\Response(response: 201, description: 'Created')])]

@@ -84,6 +84,7 @@ class NomadeoIntegrationController extends Controller
             'external_id' => 'nullable|string',
             'total_price' => 'nullable|numeric|min:0',
             'currency' => 'nullable|string|size:3',
+            'program_id' => 'nullable|uuid|exists:programs,id',
             'unit_ids' => 'nullable|array|min:1',
             'unit_ids.*.unit_id' => 'required|uuid|exists:units,id',
             'unit_ids.*.guests' => 'nullable|integer|min:1',
@@ -117,10 +118,12 @@ class NomadeoIntegrationController extends Controller
             ]);
         }
 
-        // Use provided units, or auto-assign the first available unit for the property
+        // When program_id is given without unit_ids, the use case auto-assigns from the program's room type.
+        // When neither is given, fall back to auto-assigning any available unit for the property.
         $unitIds = $validated['unit_ids'] ?? null;
+        $programId = $validated['program_id'] ?? null;
 
-        if (!$unitIds) {
+        if (!$unitIds && !$programId) {
             $bookedUnitIds = Booking::where('property_id', $property->id)
                 ->whereNotIn('status', ['cancelled', 'no_show'])
                 ->where('check_in_date', '<', $validated['check_out_date'])
@@ -147,10 +150,11 @@ class NomadeoIntegrationController extends Controller
         $booking = $this->createBooking->execute([
             'property_id' => $property->id,
             'customer_id' => $customer->id,
+            'program_id' => $programId,
             'check_in_date' => $validated['check_in_date'],
             'check_out_date' => $validated['check_out_date'],
             'guests' => $validated['guests'] ?? 1,
-            'total_price' => $validated['total_price'] ?? 0,
+            'total_price' => $validated['total_price'] ?? null,
             'currency' => $validated['currency'] ?? $property->currency,
             'source' => 'marketplace',
             'external_id' => $validated['external_id'] ?? null,

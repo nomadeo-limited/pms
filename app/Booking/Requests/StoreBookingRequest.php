@@ -26,7 +26,7 @@ class StoreBookingRequest extends FormRequest
             'discount_amount' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
             'source' => 'nullable|in:direct,marketplace,channel_manager,walk_in',
-            'unit_ids' => 'required|array|min:1',
+            'unit_ids' => 'required_without:program_id|nullable|array|min:1',
             'unit_ids.*.unit_id' => 'required|uuid|exists:units,id',
             'unit_ids.*.guests' => 'nullable|integer|min:1',
             'unit_ids.*.price_per_night' => 'nullable|numeric|min:0',

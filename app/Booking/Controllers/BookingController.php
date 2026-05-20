@@ -138,7 +138,7 @@ class BookingController extends Controller
             ->whereNotIn('status', ['cancelled', 'no_show'])
             ->where('check_in_date', '<=', $end)
             ->where('check_out_date', '>=', $start)
-            ->with(['customer', 'units'])
+            ->with(['customer', 'units', 'program'])
             ->get();
 
         return response()->json(['month' => $request->month, 'bookings' => $bookings]);
