@@ -19,6 +19,7 @@ class StoreUnitRequest extends FormRequest
             'name' => 'required|string|max:255',
             'bed_category' => 'nullable|string|max:50',
             'capacity' => 'nullable|integer|min:1',
+            'room_id'  => 'nullable|uuid|exists:rooms,id',
         ];
     }
 }

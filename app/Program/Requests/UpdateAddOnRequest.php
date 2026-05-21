@@ -19,7 +19,7 @@ class UpdateAddOnRequest extends FormRequest
             'description' => 'nullable|string',
             'price' => 'nullable|numeric|min:0',
             'currency' => 'nullable|string|size:3',
-            'max_per_booking' => 'nullable|integer|min:1',
+            'max_per_booking' => 'nullable|integer|min:0',
             'is_active' => 'sometimes|boolean',
         ];
     }

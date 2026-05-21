@@ -14,7 +14,7 @@ class Unit extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'organizer_id', 'property_id', 'room_type_id',
+        'organizer_id', 'property_id', 'room_type_id', 'room_id',
         'name', 'bed_category', 'capacity', 'is_active',
     ];
 
@@ -26,6 +26,11 @@ class Unit extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope());
+    }
+
+    public function room(): BelongsTo
+    {
+        return $this->belongsTo(Room::class);
     }
 
     public function roomType(): BelongsTo

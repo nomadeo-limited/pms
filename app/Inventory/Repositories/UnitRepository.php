@@ -10,7 +10,7 @@ class UnitRepository implements UnitRepositoryInterface
 {
     public function paginate(string $propertyId, int $perPage = 15): LengthAwarePaginator
     {
-        return Unit::where('property_id', $propertyId)->with('roomType')->orderBy('name')->paginate($perPage);
+        return Unit::where('property_id', $propertyId)->with(['roomType', 'room'])->orderBy('name')->paginate($perPage);
     }
 
     public function findById(string $id): ?Unit

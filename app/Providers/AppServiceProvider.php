@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Inventory\Repositories\RoomRepository;
+use App\Inventory\Repositories\RoomRepositoryInterface;
 use App\Inventory\Repositories\RoomTypeRepository;
 use App\Inventory\Repositories\RoomTypeRepositoryInterface;
 use App\Inventory\Repositories\UnitRepository;
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(OrganizerRepositoryInterface::class, OrganizerRepository::class);
         $this->app->bind(PropertyRepositoryInterface::class, PropertyRepository::class);
         $this->app->bind(RoomTypeRepositoryInterface::class, RoomTypeRepository::class);
+        $this->app->bind(RoomRepositoryInterface::class, RoomRepository::class);
         $this->app->bind(UnitRepositoryInterface::class, UnitRepository::class);
     }
 

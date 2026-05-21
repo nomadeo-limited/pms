@@ -9,18 +9,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class RoomType extends Model
+class Room extends Model
 {
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'organizer_id', 'property_id', 'name', 'category',
-        'description', 'max_capacity', 'amenities', 'images', 'is_active',
+        'organizer_id', 'property_id', 'room_type_id',
+        'name', 'floor', 'is_active',
     ];
 
     protected function casts(): array
     {
-        return ['amenities' => 'array', 'images' => 'array', 'is_active' => 'boolean'];
+        return ['is_active' => 'boolean'];
     }
 
     protected static function booted(): void
@@ -33,9 +33,9 @@ class RoomType extends Model
         return $this->belongsTo(Property::class);
     }
 
-    public function rooms(): HasMany
+    public function roomType(): BelongsTo
     {
-        return $this->hasMany(Room::class);
+        return $this->belongsTo(RoomType::class);
     }
 
     public function units(): HasMany

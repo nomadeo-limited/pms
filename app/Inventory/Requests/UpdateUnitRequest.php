@@ -18,6 +18,7 @@ class UpdateUnitRequest extends FormRequest
             'bed_category' => 'nullable|string|max:50',
             'capacity' => 'nullable|integer|min:1',
             'is_active' => 'sometimes|boolean',
+            'room_id'   => 'nullable|uuid|exists:rooms,id',
         ];
     }
 }

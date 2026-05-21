@@ -29,16 +29,16 @@ class AddOnController extends Controller
         return response()->json($query->paginate($request->integer('per_page', 15)));
     }
 
-    #[OA\Post(path: '/add-ons', summary: 'Create an add-on', security: [['bearerAuth' => []]], tags: ['Programs'],
-        requestBody: new OA\RequestBody(required: true,
-            content: new OA\JsonContent(required: ['property_id', 'name'],
-                properties: [
-                    new OA\Property(property: 'property_id', type: 'string', format: 'uuid'),
-                    new OA\Property(property: 'name', type: 'string'),
-                    new OA\Property(property: 'category', type: 'string', enum: ['surf_class', 'yoga_class', 'excursion', 'equipment_rental', 'transfer', 'massage', 'other']),
-                    new OA\Property(property: 'price', type: 'number', format: 'float'),
-                    new OA\Property(property: 'currency', type: 'string', example: 'EUR'),
-                ])),
+    #[OA\Post(path: '/add-ons', summary: 'Create an add-on', security: [['bearerAuth' => []]], requestBody: new OA\RequestBody(required: true,
+        content: new OA\JsonContent(required: ['property_id', 'name'],
+            properties: [
+                new OA\Property(property: 'property_id', type: 'string', format: 'uuid'),
+                new OA\Property(property: 'name', type: 'string'),
+                new OA\Property(property: 'category', type: 'string', enum: ['surf_class', 'yoga_class', 'excursion', 'equipment_rental', 'transfer', 'massage', 'other']),
+                new OA\Property(property: 'price', type: 'number', format: 'float'),
+                new OA\Property(property: 'currency', type: 'string', example: 'EUR'),
+            ])),
+        tags: ['Programs'],
         responses: [new OA\Response(response: 201, description: 'Created')])]
     public function store(StoreAddOnRequest $request): JsonResponse
     {
