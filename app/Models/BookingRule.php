@@ -16,7 +16,16 @@ class BookingRule extends Model
         'min_nights', 'max_nights',
         'check_in_days', 'check_out_days',
         'min_advance_days', 'max_advance_days',
+        'start_date', 'end_date',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'start_date' => 'date',
+            'end_date' => 'date',
+        ];
+    }
 
     protected static function booted(): void
     {

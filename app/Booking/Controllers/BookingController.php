@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class BookingController extends Controller
 {
-    public function __construct(private CreateBookingUseCase $createBooking) {}
+    public function __construct(private readonly CreateBookingUseCase $createBooking) {}
 
     #[OA\Get(path: '/bookings', summary: 'List bookings', security: [['bearerAuth' => []]], tags: ['Bookings'],
         parameters: [
@@ -23,10 +23,16 @@ class BookingController extends Controller
             new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'check_in_from', in: 'query', schema: new OA\Schema(type: 'string', format: 'date')),
             new OA\Parameter(name: 'check_in_to', in: 'query', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'sort_by', in: 'query', schema: new OA\Schema(type: 'string', enum: ['check_in_date', 'check_out_date', 'created_at'], default: 'check_in_date')),
+            new OA\Parameter(name: 'sort_dir', in: 'query', schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'], default: 'asc')),
         ],
         responses: [new OA\Response(response: 200, description: 'Bookings list')])]
     public function index(Request $request): JsonResponse
     {
+        $allowedSorts = ['check_in_date', 'check_out_date', 'created_at'];
+        $sortBy = in_array($request->sort_by, $allowedSorts) ? $request->sort_by : 'check_in_date';
+        $sortDir = $request->sort_dir === 'desc' ? 'desc' : 'asc';
+
         $query = Booking::with(['customer', 'property', 'program']);
 
         if ($request->property_id) {
@@ -42,37 +48,37 @@ class BookingController extends Controller
             $query->where('check_in_date', '<=', $request->check_in_to);
         }
 
-        return response()->json($query->orderBy('check_in_date')->paginate($request->integer('per_page', 15)));
+        return response()->json($query->orderBy($sortBy, $sortDir)->paginate($request->integer('per_page', 15)));
     }
 
-    #[OA\Post(path: '/bookings', summary: 'Create a booking', security: [['bearerAuth' => []]], tags: ['Bookings'],
-        requestBody: new OA\RequestBody(required: true,
-            content: new OA\JsonContent(required: ['property_id', 'customer_id', 'check_in_date', 'check_out_date'],
-                properties: [
-                    new OA\Property(property: 'property_id', type: 'string', format: 'uuid'),
-                    new OA\Property(property: 'customer_id', type: 'string', format: 'uuid'),
-                    new OA\Property(property: 'program_id', type: 'string', format: 'uuid'),
-                    new OA\Property(property: 'check_in_date', type: 'string', format: 'date'),
-                    new OA\Property(property: 'check_out_date', type: 'string', format: 'date'),
-                    new OA\Property(property: 'guests', type: 'integer', example: 1),
-                    new OA\Property(property: 'total_price', type: 'number', format: 'float'),
-                    new OA\Property(property: 'currency', type: 'string', example: 'EUR'),
-                    new OA\Property(property: 'notes', type: 'string'),
-                    new OA\Property(property: 'unit_ids', type: 'array', items: new OA\Items(
-                        properties: [
-                            new OA\Property(property: 'unit_id', type: 'string', format: 'uuid'),
-                            new OA\Property(property: 'guests', type: 'integer'),
-                            new OA\Property(property: 'price_per_night', type: 'number'),
-                        ]
-                    )),
-                    new OA\Property(property: 'add_on_ids', type: 'array', items: new OA\Items(
-                        properties: [
-                            new OA\Property(property: 'add_on_id', type: 'string', format: 'uuid'),
-                            new OA\Property(property: 'quantity', type: 'integer'),
-                            new OA\Property(property: 'unit_price', type: 'number'),
-                        ]
-                    )),
-                ])),
+    #[OA\Post(path: '/bookings', summary: 'Create a booking', security: [['bearerAuth' => []]], requestBody: new OA\RequestBody(required: true,
+        content: new OA\JsonContent(required: ['property_id', 'customer_id', 'check_in_date', 'check_out_date'],
+            properties: [
+                new OA\Property(property: 'property_id', type: 'string', format: 'uuid'),
+                new OA\Property(property: 'customer_id', type: 'string', format: 'uuid'),
+                new OA\Property(property: 'program_id', type: 'string', format: 'uuid'),
+                new OA\Property(property: 'check_in_date', type: 'string', format: 'date'),
+                new OA\Property(property: 'check_out_date', type: 'string', format: 'date'),
+                new OA\Property(property: 'guests', type: 'integer', example: 1),
+                new OA\Property(property: 'total_price', type: 'number', format: 'float'),
+                new OA\Property(property: 'currency', type: 'string', example: 'EUR'),
+                new OA\Property(property: 'notes', type: 'string'),
+                new OA\Property(property: 'unit_ids', type: 'array', items: new OA\Items(
+                    properties: [
+                        new OA\Property(property: 'unit_id', type: 'string', format: 'uuid'),
+                        new OA\Property(property: 'guests', type: 'integer'),
+                        new OA\Property(property: 'price_per_night', type: 'number'),
+                    ]
+                )),
+                new OA\Property(property: 'add_on_ids', type: 'array', items: new OA\Items(
+                    properties: [
+                        new OA\Property(property: 'add_on_id', type: 'string', format: 'uuid'),
+                        new OA\Property(property: 'quantity', type: 'integer'),
+                        new OA\Property(property: 'unit_price', type: 'number'),
+                    ]
+                )),
+            ])),
+        tags: ['Bookings'],
         responses: [
             new OA\Response(response: 201, description: 'Booking created'),
             new OA\Response(response: 422, description: 'Validation error'),
@@ -98,13 +104,13 @@ class BookingController extends Controller
         return response()->json($booking);
     }
 
-    #[OA\Put(path: '/bookings/{id}', summary: 'Update a booking status', security: [['bearerAuth' => []]], tags: ['Bookings'],
+    #[OA\Put(path: '/bookings/{id}', summary: 'Update a booking status', security: [['bearerAuth' => []]], requestBody: new OA\RequestBody(required: true,
+        content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'status', type: 'string', enum: ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show']),
+            new OA\Property(property: 'notes', type: 'string'),
+        ])),
+        tags: ['Bookings'],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid'))],
-        requestBody: new OA\RequestBody(required: true,
-            content: new OA\JsonContent(properties: [
-                new OA\Property(property: 'status', type: 'string', enum: ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show']),
-                new OA\Property(property: 'notes', type: 'string'),
-            ])),
         responses: [new OA\Response(response: 200, description: 'Updated'), new OA\Response(response: 404, description: 'Not found')])]
     public function update(UpdateBookingRequest $request, string $id): JsonResponse
     {

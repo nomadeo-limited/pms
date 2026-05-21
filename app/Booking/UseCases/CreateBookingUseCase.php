@@ -2,6 +2,7 @@
 
 namespace App\Booking\UseCases;
 
+use App\Models\AvailabilityRule;
 use App\Models\Booking;
 use App\Models\BookingRule;
 use App\Models\Program;
@@ -23,6 +24,7 @@ class CreateBookingUseCase
 
         [$units, $program] = $this->resolveUnits($data);
 
+        $this->validateAvailabilityRules($data, $units);
         $this->validateBookingRules($data, $nights, $checkIn, $units);
 
         return DB::transaction(function () use ($data, $nights, $createdBy, $units, $program) {
@@ -103,6 +105,7 @@ class CreateBookingUseCase
     private function resolveUnits(array $data): array
     {
         if (!empty($data['unit_ids'])) {
+            $this->validateDirectBookingCapacity($data);
             return [$data['unit_ids'], null];
         }
 
@@ -140,23 +143,97 @@ class CreateBookingUseCase
             $unitQuery->where('room_type_id', $program->room_type_id);
         }
 
-        $unit = $unitQuery->first();
+        $guests = $data['guests'] ?? 1;
+        $availableUnits = $unitQuery->orderBy('name')->get();
 
-        if (!$unit) {
+        $selectedUnits = [];
+        $remaining = $guests;
+
+        foreach ($availableUnits as $unit) {
+            if ($remaining <= 0) {
+                break;
+            }
+            $selectedUnits[] = ['unit_id' => $unit->id, 'guests' => min($unit->capacity, $remaining)];
+            $remaining -= $unit->capacity;
+        }
+
+        if ($remaining > 0) {
+            $canFit = $guests - max(0, $remaining);
             throw ValidationException::withMessages([
-                'program_id' => 'No available units for this program on the requested dates.',
+                'program_id' => "Not enough capacity available: can accommodate {$canFit} of {$guests} guests on the requested dates.",
             ]);
         }
 
-        return [[['unit_id' => $unit->id, 'guests' => $data['guests'] ?? 1]], $program];
+        return [$selectedUnits, $program];
+    }
+
+    private function validateDirectBookingCapacity(array $data): void
+    {
+        $guests = $data['guests'] ?? 1;
+        $unitIds = array_column($data['unit_ids'], 'unit_id');
+        $totalCapacity = Unit::whereIn('id', $unitIds)->sum('capacity');
+
+        if ($totalCapacity < $guests) {
+            throw ValidationException::withMessages([
+                'unit_ids' => "Selected unit(s) have a combined capacity of {$totalCapacity} but {$guests} guests were requested.",
+            ]);
+        }
+    }
+
+    private function validateAvailabilityRules(array $data, array $units): void
+    {
+        $unitIds = array_column($units, 'unit_id');
+        $checkIn = Carbon::parse($data['check_in_date']);
+        $checkOut = Carbon::parse($data['check_out_date'])->subDay();
+
+        $roomTypeIds = Unit::whereIn('id', $unitIds)
+            ->whereNotNull('room_type_id')
+            ->pluck('room_type_id')
+            ->unique()
+            ->values();
+
+        $blockingRules = AvailabilityRule::where('capacity', 0)
+            ->where(function ($q) use ($unitIds, $roomTypeIds) {
+                $q->where(fn($q2) => $q2->where('ruleable_type', 'unit')->whereIn('ruleable_id', $unitIds));
+                if ($roomTypeIds->isNotEmpty()) {
+                    $q->orWhere(fn($q2) => $q2->where('ruleable_type', 'room_type')->whereIn('ruleable_id', $roomTypeIds));
+                }
+            })
+            ->where(fn($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $data['check_in_date']))
+            ->where(fn($q) => $q->whereNull('start_date')->orWhere('start_date', '<=', $data['check_out_date']))
+            ->get();
+
+        if ($blockingRules->isEmpty()) {
+            return;
+        }
+
+        $cursor = $checkIn->copy();
+        while ($cursor->lte($checkOut)) {
+            foreach ($blockingRules as $rule) {
+                if ($rule->appliesOnDay($cursor)) {
+                    throw ValidationException::withMessages([
+                        'check_in_date' => 'One or more requested units are not available on the selected dates.',
+                    ]);
+                }
+            }
+            $cursor->addDay();
+        }
     }
 
     private function validateBookingRules(array $data, int $nights, Carbon $checkIn, array $units): void
     {
         $rules = BookingRule::where(function ($q) use ($data) {
-            $q->where('property_id', $data['property_id'])
-                ->orWhereNull('property_id');
-        })->get();
+            $q->where('property_id', $data['property_id'])->orWhereNull('property_id');
+        })
+        ->where(function ($q) use ($data) {
+            // Rule applies when it has no date range, or its range overlaps the booking dates
+            $q->whereNull('start_date')
+              ->orWhere(function ($q2) use ($data) {
+                  $q2->where('start_date', '<=', $data['check_out_date'])
+                     ->where(fn($q3) => $q3->whereNull('end_date')->orWhere('end_date', '>=', $data['check_in_date']));
+              });
+        })
+        ->get();
 
         $today = Carbon::today();
         $advanceDays = $today->diffInDays($checkIn, false);

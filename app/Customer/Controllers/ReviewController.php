@@ -17,15 +17,23 @@ class ReviewController extends Controller
     public function __construct(private TenantContext $tenantContext) {}
 
     #[OA\Get(path: '/reviews', summary: 'List reviews', security: [['bearerAuth' => []]], tags: ['Customers'],
-        parameters: [new OA\Parameter(name: 'published_only', in: 'query', schema: new OA\Schema(type: 'boolean'))],
+        parameters: [
+            new OA\Parameter(name: 'published_only', in: 'query', schema: new OA\Schema(type: 'boolean')),
+            new OA\Parameter(name: 'sort_by', in: 'query', schema: new OA\Schema(type: 'string', enum: ['created_at', 'overall_rating'], default: 'created_at')),
+            new OA\Parameter(name: 'sort_dir', in: 'query', schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'], default: 'desc')),
+        ],
         responses: [new OA\Response(response: 200, description: 'Reviews list')])]
     public function index(Request $request): JsonResponse
     {
+        $allowedSorts = ['created_at', 'overall_rating'];
+        $sortBy = in_array($request->sort_by, $allowedSorts) ? $request->sort_by : 'created_at';
+        $sortDir = $request->sort_dir === 'asc' ? 'asc' : 'desc';
+
         $query = Review::with(['customer', 'booking']);
         if ($request->boolean('published_only')) {
             $query->where('is_published', true);
         }
-        return response()->json($query->latest()->paginate($request->integer('per_page', 15)));
+        return response()->json($query->orderBy($sortBy, $sortDir)->paginate($request->integer('per_page', 15)));
     }
 
     #[OA\Post(path: '/reviews', summary: 'Create a review', security: [['bearerAuth' => []]], tags: ['Customers'],

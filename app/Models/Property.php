@@ -21,6 +21,8 @@ class Property extends Model
         'city',
         'country',
         'timezone',
+        'check_in_time',
+        'check_out_time',
         'currency',
         'locale',
         'latitude',

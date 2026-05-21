@@ -19,15 +19,24 @@ class PaymentController extends Controller
     public function __construct(private TenantContext $tenantContext) {}
 
     #[OA\Get(path: '/bookings/{bookingId}/payments', summary: 'List payments for a booking', security: [['bearerAuth' => []]], tags: ['Payments'],
-        parameters: [new OA\Parameter(name: 'bookingId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid'))],
+        parameters: [
+            new OA\Parameter(name: 'bookingId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
+            new OA\Parameter(name: 'sort_by', in: 'query', schema: new OA\Schema(type: 'string', enum: ['due_date', 'paid_at', 'created_at'], default: 'due_date')),
+            new OA\Parameter(name: 'sort_dir', in: 'query', schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'], default: 'asc')),
+        ],
         responses: [new OA\Response(response: 200, description: 'Payments list'), new OA\Response(response: 404, description: 'Booking not found')])]
-    public function index(string $bookingId): JsonResponse
+    public function index(Request $request, string $bookingId): JsonResponse
     {
         $booking = Booking::find($bookingId);
         if (!$booking) {
             return response()->json(['message' => 'Booking not found.'], Response::HTTP_NOT_FOUND);
         }
-        return response()->json($booking->payments()->orderBy('due_date')->get());
+
+        $allowedSorts = ['due_date', 'paid_at', 'created_at'];
+        $sortBy = in_array($request->sort_by, $allowedSorts) ? $request->sort_by : 'due_date';
+        $sortDir = $request->sort_dir === 'desc' ? 'desc' : 'asc';
+
+        return response()->json($booking->payments()->orderBy($sortBy, $sortDir)->get());
     }
 
     #[OA\Post(path: '/bookings/{bookingId}/payments', summary: 'Record a payment', security: [['bearerAuth' => []]], tags: ['Payments'],

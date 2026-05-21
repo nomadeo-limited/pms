@@ -17,41 +17,36 @@ class GetAvailabilityCalendarUseCase
 
         $units = Unit::where('property_id', $propertyId)
             ->where('is_active', true)
-            ->pluck('id');
+            ->get(['id', 'room_type_id']);
 
-        $totalUnits = $units->count();
+        $allUnitIds = $units->pluck('id');
+        $roomTypeIds = $units->pluck('room_type_id')->filter()->unique()->values();
+        $totalUnits = $allUnitIds->count();
 
-        // All confirmed bookings that overlap the range
         $bookedUnitsByDay = $this->getBookedUnitIdsByDay($propertyId, $startDate, $endDate);
 
-        // Availability rules that block units in the range
-        $blockingRules = AvailabilityRule::where('ruleable_type', 'unit')
-            ->whereIn('ruleable_id', $units)
-            ->where('capacity', 0)
-            ->where(function ($q) use ($startDate, $endDate) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', $startDate);
-            })
-            ->where(function ($q) use ($startDate, $endDate) {
-                $q->whereNull('start_date')->orWhere('start_date', '<=', $endDate);
-            })
-            ->get()
-            ->groupBy('ruleable_id');
+        $blockingRules = $this->getBlockingRules($allUnitIds, $roomTypeIds, $startDate, $endDate);
+
+        // Pre-compute: for room_type rules, map rule → unit IDs affected
+        $roomTypeToUnitIds = $units->groupBy('room_type_id')->map(fn($g) => $g->pluck('id'));
 
         $days = [];
         $cursor = $start->copy();
         while ($cursor->lte($end)) {
             $dateKey = $cursor->toDateString();
-            $dayOfWeek = $cursor->dayOfWeek; // 0=Sun … 6=Sat
 
             $blockedUnitIds = collect();
 
-            // Units blocked by availability rules on this day
-            foreach ($blockingRules as $unitId => $rules) {
-                foreach ($rules as $rule) {
-                    if ($this->ruleAppliesOnDay($rule, $cursor, $dayOfWeek)) {
-                        $blockedUnitIds->push($unitId);
-                        break;
-                    }
+            foreach ($blockingRules as $rule) {
+                if (!$rule->appliesOnDay($cursor)) {
+                    continue;
+                }
+                if ($rule->ruleable_type === 'unit') {
+                    $blockedUnitIds->push($rule->ruleable_id);
+                } elseif ($rule->ruleable_type === 'room_type') {
+                    $blockedUnitIds = $blockedUnitIds->merge(
+                        $roomTypeToUnitIds[$rule->ruleable_id] ?? collect()
+                    );
                 }
             }
 
@@ -62,7 +57,7 @@ class GetAvailabilityCalendarUseCase
                 'date' => $dateKey,
                 'total_units' => $totalUnits,
                 'booked_units' => $bookedIds->count(),
-                'blocked_units' => $blockedUnitIds->count(),
+                'blocked_units' => $blockedUnitIds->unique()->count(),
                 'available_units' => max(0, $totalUnits - $unavailableCount),
             ];
 
@@ -76,6 +71,20 @@ class GetAvailabilityCalendarUseCase
             'total_units' => $totalUnits,
             'days' => $days,
         ];
+    }
+
+    private function getBlockingRules(Collection $unitIds, Collection $roomTypeIds, string $startDate, string $endDate): Collection
+    {
+        return AvailabilityRule::where('capacity', 0)
+            ->where(function ($q) use ($unitIds, $roomTypeIds) {
+                $q->where(fn($q2) => $q2->where('ruleable_type', 'unit')->whereIn('ruleable_id', $unitIds));
+                if ($roomTypeIds->isNotEmpty()) {
+                    $q->orWhere(fn($q2) => $q2->where('ruleable_type', 'room_type')->whereIn('ruleable_id', $roomTypeIds));
+                }
+            })
+            ->where(fn($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $startDate))
+            ->where(fn($q) => $q->whereNull('start_date')->orWhere('start_date', '<=', $endDate))
+            ->get();
     }
 
     private function getBookedUnitIdsByDay(string $propertyId, string $startDate, string $endDate): Collection
@@ -108,20 +117,5 @@ class GetAvailabilityCalendarUseCase
         }
 
         return $map;
-    }
-
-    private function ruleAppliesOnDay(AvailabilityRule $rule, Carbon $day, int $dayOfWeek): bool
-    {
-        if ($rule->start_date && $day->lt($rule->start_date)) {
-            return false;
-        }
-        if ($rule->end_date && $day->gt($rule->end_date)) {
-            return false;
-        }
-        // weekday_mask: index 0=Sun … 6=Sat, '1' means allowed/open, '0' means blocked
-        if ($rule->weekday_mask && $rule->weekday_mask !== '1111111') {
-            return $rule->weekday_mask[$dayOfWeek] === '0';
-        }
-        return true;
     }
 }

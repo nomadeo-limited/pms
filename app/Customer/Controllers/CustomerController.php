@@ -17,9 +17,18 @@ class CustomerController extends Controller
     public function __construct(private TenantContext $tenantContext) {}
 
     #[OA\Get(path: '/customers', summary: 'List customers', security: [['bearerAuth' => []]], tags: ['Customers'],
+        parameters: [
+            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'sort_by', in: 'query', schema: new OA\Schema(type: 'string', enum: ['last_name', 'created_at'], default: 'last_name')),
+            new OA\Parameter(name: 'sort_dir', in: 'query', schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'], default: 'asc')),
+        ],
         responses: [new OA\Response(response: 200, description: 'Customers list')])]
     public function index(Request $request): JsonResponse
     {
+        $allowedSorts = ['last_name', 'created_at'];
+        $sortBy = in_array($request->sort_by, $allowedSorts) ? $request->sort_by : 'last_name';
+        $sortDir = $request->sort_dir === 'desc' ? 'desc' : 'asc';
+
         $query = Customer::query();
         if ($request->search) {
             $query->where(function ($q) use ($request) {
@@ -28,7 +37,7 @@ class CustomerController extends Controller
                     ->orWhere('email', 'ilike', "%{$request->search}%");
             });
         }
-        return response()->json($query->orderBy('last_name')->paginate($request->integer('per_page', 15)));
+        return response()->json($query->orderBy($sortBy, $sortDir)->paginate($request->integer('per_page', 15)));
     }
 
     #[OA\Post(path: '/customers', summary: 'Create a customer', security: [['bearerAuth' => []]], tags: ['Customers'],

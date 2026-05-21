@@ -2,6 +2,7 @@
 
 namespace App\Availability\Controllers;
 
+use App\Availability\Helpers\WeekdayMask;
 use App\Availability\Requests\StoreAvailabilityRuleRequest;
 use App\Availability\Requests\StoreBookingRuleRequest;
 use App\Availability\UseCases\CheckAvailabilityUseCase;
@@ -74,29 +75,31 @@ class AvailabilityController extends Controller
         responses: [new OA\Response(response: 200, description: 'Rules list')])]
     public function indexRules(Request $request): JsonResponse
     {
-        return response()->json(AvailabilityRule::paginate($request->integer('per_page', 15)));
+        $paginated = AvailabilityRule::paginate($request->integer('per_page', 15));
+        $paginated->getCollection()->transform(fn($r) => $this->formatRule($r));
+        return response()->json($paginated);
     }
 
     #[OA\Post(path: '/availability/rules', summary: 'Create an availability rule', security: [['bearerAuth' => []]], tags: ['Availability'],
         requestBody: new OA\RequestBody(required: true,
             content: new OA\JsonContent(required: ['ruleable_type', 'ruleable_id', 'rule_type'],
                 properties: [
-                    new OA\Property(property: 'ruleable_type', type: 'string', enum: ['program', 'unit']),
+                    new OA\Property(property: 'ruleable_type', type: 'string', enum: ['program', 'unit', 'room_type']),
                     new OA\Property(property: 'ruleable_id', type: 'string', format: 'uuid'),
                     new OA\Property(property: 'rule_type', type: 'string', enum: ['daily', 'specific_dates', 'date_range']),
                     new OA\Property(property: 'start_date', type: 'string', format: 'date'),
                     new OA\Property(property: 'end_date', type: 'string', format: 'date'),
-                    new OA\Property(property: 'weekday_mask', type: 'string', example: '1111111'),
+                    new OA\Property(property: 'weekday_mask', type: 'array', items: new OA\Items(type: 'string'), example: ['monday', 'tuesday']),
                     new OA\Property(property: 'capacity', type: 'integer'),
                 ])),
         responses: [new OA\Response(response: 201, description: 'Created')])]
     public function storeRule(StoreAvailabilityRuleRequest $request): JsonResponse
     {
         $validated = $request->validated();
-
         $validated['organizer_id'] = $this->tenantContext->getOrganizerId();
 
-        return response()->json(AvailabilityRule::create($validated), Response::HTTP_CREATED);
+        $rule = AvailabilityRule::create($validated);
+        return response()->json($this->formatRule($rule), Response::HTTP_CREATED);
     }
 
     #[OA\Delete(path: '/availability/rules/{id}', summary: 'Delete an availability rule', security: [['bearerAuth' => []]], tags: ['Availability'],
@@ -116,7 +119,9 @@ class AvailabilityController extends Controller
         responses: [new OA\Response(response: 200, description: 'Booking rules list')])]
     public function indexBookingRules(Request $request): JsonResponse
     {
-        return response()->json(BookingRule::paginate($request->integer('per_page', 15)));
+        $paginated = BookingRule::paginate($request->integer('per_page', 15));
+        $paginated->getCollection()->transform(fn($r) => $this->formatBookingRule($r));
+        return response()->json($paginated);
     }
 
     #[OA\Post(path: '/booking-rules', summary: 'Create a booking rule', security: [['bearerAuth' => []]], tags: ['Availability'],
@@ -126,17 +131,38 @@ class AvailabilityController extends Controller
                 new OA\Property(property: 'program_id', type: 'string', format: 'uuid'),
                 new OA\Property(property: 'min_nights', type: 'integer', example: 3),
                 new OA\Property(property: 'max_nights', type: 'integer', example: 28),
-                new OA\Property(property: 'check_in_days', type: 'string', example: '1000001'),
+                new OA\Property(property: 'check_in_days', type: 'array', items: new OA\Items(type: 'string'), example: ['monday', 'sunday']),
                 new OA\Property(property: 'min_advance_days', type: 'integer', example: 1),
                 new OA\Property(property: 'max_advance_days', type: 'integer', example: 180),
+                new OA\Property(property: 'start_date', type: 'string', format: 'date', description: 'Rule applies only from this date (inclusive)'),
+                new OA\Property(property: 'end_date', type: 'string', format: 'date', description: 'Rule applies only until this date (inclusive)'),
             ])),
         responses: [new OA\Response(response: 201, description: 'Created')])]
     public function storeBookingRule(StoreBookingRuleRequest $request): JsonResponse
     {
         $validated = $request->validated();
-
         $validated['organizer_id'] = $this->tenantContext->getOrganizerId();
 
-        return response()->json(BookingRule::create($validated), Response::HTTP_CREATED);
+        $rule = BookingRule::create($validated);
+        return response()->json($this->formatBookingRule($rule), Response::HTTP_CREATED);
+    }
+
+    private function formatRule(AvailabilityRule $rule): array
+    {
+        $data = $rule->toArray();
+        $data['weekday_mask'] = WeekdayMask::toArray($rule->weekday_mask ?? '1111111');
+        return $data;
+    }
+
+    private function formatBookingRule(BookingRule $rule): array
+    {
+        $data = $rule->toArray();
+        if ($rule->check_in_days !== null) {
+            $data['check_in_days'] = WeekdayMask::toArray($rule->check_in_days);
+        }
+        if ($rule->check_out_days !== null) {
+            $data['check_out_days'] = WeekdayMask::toArray($rule->check_out_days);
+        }
+        return $data;
     }
 }

@@ -11,8 +11,12 @@ class CheckAvailabilityUseCase
 {
     public function execute(string $propertyId, string $checkIn, string $checkOut, int $minUnits = 1): array
     {
-        $checkInDate = Carbon::parse($checkIn);
-        $checkOutDate = Carbon::parse($checkOut);
+        $units = Unit::where('property_id', $propertyId)
+            ->where('is_active', true)
+            ->get(['id', 'room_type_id']);
+
+        $allUnitIds = $units->pluck('id');
+        $roomTypeIds = $units->pluck('room_type_id')->filter()->unique()->values();
 
         // Units booked for any part of the requested range
         $bookedUnitIds = Booking::where('property_id', $propertyId)
@@ -26,24 +30,33 @@ class CheckAvailabilityUseCase
             ->pluck('id')
             ->unique();
 
-        // Units blocked by a capacity=0 rule for any day in the range
-        $allUnitIds = Unit::where('property_id', $propertyId)
-            ->where('is_active', true)
-            ->pluck('id');
-
-        $blockedUnitIds = AvailabilityRule::where('ruleable_type', 'unit')
+        // Unit-level blocking rules
+        $unitBlockedIds = AvailabilityRule::where('ruleable_type', 'unit')
             ->whereIn('ruleable_id', $allUnitIds)
             ->where('capacity', 0)
-            ->where(function ($q) use ($checkIn, $checkOut) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', $checkIn);
-            })
-            ->where(function ($q) use ($checkIn, $checkOut) {
-                $q->whereNull('start_date')->orWhere('start_date', '<', $checkOut);
-            })
+            ->where(fn($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $checkIn))
+            ->where(fn($q) => $q->whereNull('start_date')->orWhere('start_date', '<', $checkOut))
             ->pluck('ruleable_id')
             ->unique();
 
-        $unavailableIds = $bookedUnitIds->merge($blockedUnitIds)->unique();
+        // Room-type-level blocking rules: all units of that room type are blocked
+        $blockedRoomTypeIds = $roomTypeIds->isNotEmpty()
+            ? AvailabilityRule::where('ruleable_type', 'room_type')
+                ->whereIn('ruleable_id', $roomTypeIds)
+                ->where('capacity', 0)
+                ->where(fn($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $checkIn))
+                ->where(fn($q) => $q->whereNull('start_date')->orWhere('start_date', '<', $checkOut))
+                ->pluck('ruleable_id')
+                ->unique()
+            : collect();
+
+        $roomTypeBlockedUnitIds = $units->whereIn('room_type_id', $blockedRoomTypeIds)->pluck('id');
+
+        $unavailableIds = $bookedUnitIds
+            ->merge($unitBlockedIds)
+            ->merge($roomTypeBlockedUnitIds)
+            ->unique();
+
         $availableCount = $allUnitIds->diff($unavailableIds)->count();
 
         return [
