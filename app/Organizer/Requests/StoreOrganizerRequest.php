@@ -16,7 +16,6 @@ class StoreOrganizerRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:organizers,email',
-            'slug' => 'nullable|string|max:100|unique:organizers,slug',
             'phone' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:100',

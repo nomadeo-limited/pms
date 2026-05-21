@@ -23,8 +23,8 @@ class BookingController extends Controller
             new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'check_in_from', in: 'query', schema: new OA\Schema(type: 'string', format: 'date')),
             new OA\Parameter(name: 'check_in_to', in: 'query', schema: new OA\Schema(type: 'string', format: 'date')),
-            new OA\Parameter(name: 'sort_by', in: 'query', schema: new OA\Schema(type: 'string', enum: ['check_in_date', 'check_out_date', 'created_at'], default: 'check_in_date')),
-            new OA\Parameter(name: 'sort_dir', in: 'query', schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'], default: 'asc')),
+            new OA\Parameter(name: 'sort_by', in: 'query', schema: new OA\Schema(type: 'string', default: 'check_in_date', enum: ['check_in_date', 'check_out_date', 'created_at'])),
+            new OA\Parameter(name: 'sort_dir', in: 'query', schema: new OA\Schema(type: 'string', default: 'asc', enum: ['asc', 'desc'])),
         ],
         responses: [new OA\Response(response: 200, description: 'Bookings list')])]
     public function index(Request $request): JsonResponse
@@ -97,7 +97,7 @@ class BookingController extends Controller
         responses: [new OA\Response(response: 200, description: 'Booking'), new OA\Response(response: 404, description: 'Not found')])]
     public function show(string $id): JsonResponse
     {
-        $booking = Booking::with(['customer', 'property', 'program', 'units', 'addOns', 'payments'])->find($id);
+        $booking = Booking::with(['customer', 'property', 'program', 'units', 'addOns', 'payments', 'bookingGuests'])->find($id);
         if (!$booking) {
             return response()->json(['message' => 'Booking not found.'], Response::HTTP_NOT_FOUND);
         }
@@ -144,7 +144,7 @@ class BookingController extends Controller
             ->whereNotIn('status', ['cancelled', 'no_show'])
             ->where('check_in_date', '<=', $end)
             ->where('check_out_date', '>=', $start)
-            ->with(['customer', 'units', 'program'])
+            ->with(['customer', 'units', 'program', 'bookingGuests'])
             ->get();
 
         return response()->json(['month' => $request->month, 'bookings' => $bookings]);

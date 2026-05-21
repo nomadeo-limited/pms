@@ -17,9 +17,9 @@ use Symfony\Component\HttpFoundation\Response;
 class OrganizerController extends Controller
 {
     public function __construct(
-        private OrganizerRepositoryInterface $organizers,
-        private CreateOrganizerUseCase $createOrganizer,
-        private UpdateOrganizerUseCase $updateOrganizer,
+        private readonly OrganizerRepositoryInterface $organizers,
+        private readonly CreateOrganizerUseCase $createOrganizer,
+        private readonly UpdateOrganizerUseCase $updateOrganizer,
     ) {}
 
     #[OA\Get(
@@ -46,7 +46,6 @@ class OrganizerController extends Controller
         path: '/organizers',
         summary: 'Create a new organizer',
         security: [['bearerAuth' => []]],
-        tags: ['Organizers'],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -54,7 +53,6 @@ class OrganizerController extends Controller
                 properties: [
                     new OA\Property(property: 'name', type: 'string', example: 'Surf Paradise Camp'),
                     new OA\Property(property: 'email', type: 'string', format: 'email'),
-                    new OA\Property(property: 'slug', type: 'string', example: 'surf-paradise-camp'),
                     new OA\Property(property: 'phone', type: 'string'),
                     new OA\Property(property: 'country', type: 'string', example: 'PT'),
                     new OA\Property(property: 'currency', type: 'string', example: 'EUR'),
@@ -63,6 +61,7 @@ class OrganizerController extends Controller
                 ]
             )
         ),
+        tags: ['Organizers'],
         responses: [
             new OA\Response(response: 201, description: 'Organizer created'),
             new OA\Response(response: 403, description: 'Forbidden'),

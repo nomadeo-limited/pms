@@ -10,14 +10,16 @@ use Illuminate\Support\Collection;
 
 class GetAvailabilityCalendarUseCase
 {
-    public function execute(string $propertyId, string $startDate, string $endDate): array
+    public function execute(string $propertyId, string $startDate, string $endDate, ?string $roomTypeId = null): array
     {
         $start = Carbon::parse($startDate);
         $end = Carbon::parse($endDate);
 
-        $units = Unit::where('property_id', $propertyId)
-            ->where('is_active', true)
-            ->get(['id', 'room_type_id']);
+        $unitQuery = Unit::where('property_id', $propertyId)->where('is_active', true);
+        if ($roomTypeId) {
+            $unitQuery->where('room_type_id', $roomTypeId);
+        }
+        $units = $unitQuery->get(['id', 'room_type_id']);
 
         $allUnitIds = $units->pluck('id');
         $roomTypeIds = $units->pluck('room_type_id')->filter()->unique()->values();

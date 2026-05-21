@@ -94,6 +94,7 @@ class CalculatePriceUseCase
 
         return match ($rule->model) {
             'per_night' => $amount->multipliedBy($nights),
+            'per_person' => $amount->multipliedBy($guests),
             'per_person_per_night' => $amount->multipliedBy($nights * $guests),
             'fixed_package' => $amount,
             default => $amount,

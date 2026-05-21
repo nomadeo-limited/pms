@@ -15,7 +15,6 @@ class StorePropertyRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:100',
             'type' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:100',

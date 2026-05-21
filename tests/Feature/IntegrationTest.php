@@ -151,7 +151,7 @@ class IntegrationTest extends TestCase
             'check_out_date' => '2026-11-10',
             'guests' => 1,
             'customer' => ['first_name' => 'Bob', 'last_name' => 'B', 'email' => 'bob@test.com'],
-        ], $headers)->assertStatus(422)->assertJsonPath('message', 'No available units for the requested dates.');
+        ], $headers)->assertStatus(422)->assertJsonPath('message', 'Not enough capacity available: can accommodate 0 of 1 guests on the requested dates.');
     }
 
     public function test_integration_endpoint_rejects_invalid_token(): void

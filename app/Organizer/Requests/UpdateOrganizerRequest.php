@@ -3,6 +3,7 @@
 namespace App\Organizer\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateOrganizerRequest extends FormRequest
 {
@@ -15,7 +16,7 @@ class UpdateOrganizerRequest extends FormRequest
     {
         return [
             'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:organizers,email,' . $this->route('id'),
+            'email' => ['sometimes', 'email', Rule::unique('organizers', 'email')->ignore($this->route('organizer'))],
             'phone' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:100',

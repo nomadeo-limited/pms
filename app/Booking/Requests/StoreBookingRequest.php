@@ -34,6 +34,16 @@ class StoreBookingRequest extends FormRequest
             'add_on_ids.*.add_on_id' => 'required|uuid|exists:add_ons,id',
             'add_on_ids.*.quantity' => 'nullable|integer|min:1',
             'add_on_ids.*.unit_price' => 'nullable|numeric|min:0',
+            'additional_guests' => 'nullable|array',
+            'additional_guests.*.first_name' => 'required|string|max:100',
+            'additional_guests.*.last_name' => 'required|string|max:100',
+            'additional_guests.*.email' => 'nullable|email',
+            'additional_guests.*.phone' => 'nullable|string|max:50',
+            'additional_guests.*.nationality' => 'nullable|string|size:2',
+            'additional_guests.*.date_of_birth' => 'nullable|date',
+            'additional_guests.*.document_type' => 'nullable|in:passport,national_id,other',
+            'additional_guests.*.document_number' => 'nullable|string|max:50',
+            'additional_guests.*.document_country' => 'nullable|string|size:2',
         ];
     }
 }

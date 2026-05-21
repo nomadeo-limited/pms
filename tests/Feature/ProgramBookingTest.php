@@ -378,6 +378,47 @@ class ProgramBookingTest extends TestCase
             ->assertJsonValidationErrors(['unit_ids']);
     }
 
+    public function test_program_booking_price_scales_with_guest_count(): void
+    {
+        $s = $this->scaffoldOrg();
+
+        // Second bed so 2 guests can be accommodated
+        Unit::create([
+            'organizer_id' => $s['org']->id,
+            'property_id' => $s['property']->id,
+            'room_type_id' => $s['dormRoomType']->id,
+            'name' => 'Bed A2',
+            'capacity' => 1,
+            'is_active' => true,
+        ]);
+
+        $program = Program::create([
+            'organizer_id' => $s['org']->id,
+            'property_id' => $s['property']->id,
+            'room_type_id' => $s['dormRoomType']->id,
+            'name' => '7-Day Surf Week',
+            'type' => 'surf_camp',
+            'duration_days' => 7,
+            'base_price' => 450.00,
+            'currency' => 'EUR',
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/v1/bookings', [
+            'property_id' => $s['property']->id,
+            'customer_id' => $s['customer']->id,
+            'program_id' => $program->id,
+            'check_in_date' => '2027-06-07',
+            'check_out_date' => '2027-06-14',
+            'guests' => 2,
+        ], $this->orgHeaders($s['admin'], $s['org']));
+
+        $response->assertCreated()
+            ->assertJsonPath('total_price', '900.00')  // 450 × 2 guests
+            ->assertJsonPath('currency', 'EUR')
+            ->assertJsonPath('guests', 2);
+    }
+
     public function test_program_without_room_type_auto_assigns_any_available_unit(): void
     {
         $s = $this->scaffoldOrg();

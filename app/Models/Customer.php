@@ -22,7 +22,8 @@ class Customer extends Model
 
     protected $fillable = [
         'organizer_id', 'first_name', 'last_name', 'email', 'phone',
-        'nationality', 'date_of_birth', 'passport_number',
+        'nationality', 'date_of_birth',
+        'document_type', 'document_number', 'document_country',
         'emergency_contact_name', 'emergency_contact_phone',
         'dietary_restrictions', 'notes', 'status',
         'preferred_locale', 'preferred_currency', 'external_id',

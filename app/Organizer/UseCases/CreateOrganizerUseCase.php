@@ -5,7 +5,6 @@ namespace App\Organizer\UseCases;
 use App\Models\Organizer;
 use App\Organizer\Repositories\OrganizerRepositoryInterface;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class CreateOrganizerUseCase
 {
@@ -13,10 +12,13 @@ class CreateOrganizerUseCase
 
     public function execute(array $data): Organizer
     {
-        $slug = $data['slug'] ?? Str::slug($data['name']);
+        $base = Str::slug($data['name']);
+        $slug = $base;
+        $counter = 2;
 
-        if ($this->organizers->findBySlug($slug)) {
-            throw ValidationException::withMessages(['slug' => 'This slug is already taken.']);
+        while ($this->organizers->findBySlug($slug)) {
+            $slug = "{$base}-{$counter}";
+            $counter++;
         }
 
         return $this->organizers->create(array_merge($data, ['slug' => $slug]));

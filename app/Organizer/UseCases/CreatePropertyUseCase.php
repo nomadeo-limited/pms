@@ -6,7 +6,6 @@ use App\Models\Property;
 use App\Organizer\Repositories\PropertyRepositoryInterface;
 use App\Tenant\TenantContext;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class CreatePropertyUseCase
 {
@@ -18,10 +17,13 @@ class CreatePropertyUseCase
     public function execute(array $data): Property
     {
         $organizerId = $data['organizer_id'] ?? $this->tenantContext->getOrganizerId();
-        $slug = $data['slug'] ?? Str::slug($data['name']);
+        $base = Str::slug($data['name']);
+        $slug = $base;
+        $counter = 2;
 
-        if ($this->properties->findBySlug($organizerId, $slug)) {
-            throw ValidationException::withMessages(['slug' => 'This slug is already taken for this organizer.']);
+        while ($this->properties->findBySlug($organizerId, $slug)) {
+            $slug = "{$base}-{$counter}";
+            $counter++;
         }
 
         return $this->properties->create(array_merge($data, [

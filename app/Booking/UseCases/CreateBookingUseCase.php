@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\BookingRule;
 use App\Models\Program;
 use App\Models\Unit;
+use App\Pricing\UseCases\CalculatePriceUseCase;
 use App\Tenant\TenantContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,10 @@ use Illuminate\Validation\ValidationException;
 
 class CreateBookingUseCase
 {
-    public function __construct(private TenantContext $tenantContext) {}
+    public function __construct(
+        private TenantContext $tenantContext,
+        private CalculatePriceUseCase $calculatePrice,
+    ) {}
 
     public function execute(array $data, ?string $createdBy): Booking
     {
@@ -27,13 +31,10 @@ class CreateBookingUseCase
         $this->validateAvailabilityRules($data, $units);
         $this->validateBookingRules($data, $nights, $checkIn, $units);
 
-        return DB::transaction(function () use ($data, $nights, $createdBy, $units, $program) {
-            $totalPrice = $data['total_price']
-                ?? ($program?->base_price !== null ? (float) $program->base_price : 0);
+        $guests = $data['guests'] ?? 1;
+        [$totalPrice, $currency, $discountAmount, $discountId] = $this->resolvePrice($data, $program, $guests);
 
-            $currency = $data['currency']
-                ?? $program?->currency
-                ?? 'USD';
+        return DB::transaction(function () use ($data, $nights, $createdBy, $units, $program, $totalPrice, $currency, $discountAmount, $discountId, $guests) {
 
             $booking = Booking::create([
                 'organizer_id' => $this->tenantContext->getOrganizerId(),
@@ -43,13 +44,13 @@ class CreateBookingUseCase
                 'check_in_date' => $data['check_in_date'],
                 'check_out_date' => $data['check_out_date'],
                 'nights' => $nights,
-                'guests' => $data['guests'] ?? 1,
+                'guests' => $guests,
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'total_price' => $totalPrice,
                 'currency' => $currency,
-                'discount_id' => $data['discount_id'] ?? null,
-                'discount_amount' => $data['discount_amount'] ?? 0,
+                'discount_id' => $discountId,
+                'discount_amount' => $discountAmount,
                 'notes' => $data['notes'] ?? null,
                 'source' => $data['source'] ?? 'direct',
                 'external_id' => $data['external_id'] ?? null,
@@ -91,8 +92,70 @@ class CreateBookingUseCase
                 $booking->addOns()->attach($addOnId, $pivot);
             }
 
-            return $booking->load(['customer', 'property', 'program', 'units', 'addOns']);
+            foreach ($data['additional_guests'] ?? [] as $guest) {
+                $booking->bookingGuests()->create($guest);
+            }
+
+            return $booking->load(['customer', 'property', 'program', 'units', 'addOns', 'bookingGuests']);
         });
+    }
+
+    /**
+     * Resolves total price, currency, discount amount, and discount id.
+     * Priority: explicit total_price > pricing rule (seasonal) > base_price × guests.
+     *
+     * @return array{0: float, 1: string, 2: float, 3: string|null}
+     */
+    private function resolvePrice(array $data, ?Program $program, int $guests): array
+    {
+        // Caller supplied an explicit price — honour it as-is.
+        if (isset($data['total_price'])) {
+            return [
+                (float) $data['total_price'],
+                $data['currency'] ?? $program?->currency ?? 'USD',
+                (float) ($data['discount_amount'] ?? 0),
+                $data['discount_id'] ?? null,
+            ];
+        }
+
+        if ($program) {
+            // Check for a pricing rule (seasonal overrides, special rates).
+            $result = $this->calculatePrice->execute(
+                'program', $program->id,
+                $data['check_in_date'], $data['check_out_date'],
+                $guests,
+                null,
+                $data['discount_id'] ?? null,
+            );
+
+            if ($result['total_price'] !== null) {
+                return [
+                    (float) $result['total_price'],
+                    $result['currency'],
+                    (float) ($result['discount_amount'] ?? 0),
+                    $result['discount_applied']['id'] ?? ($data['discount_id'] ?? null),
+                ];
+            }
+
+            // Fallback: base_price is per person per stay.
+            $total = $program->base_price !== null
+                ? (float) $program->base_price * $guests
+                : 0.0;
+
+            return [
+                $total,
+                $data['currency'] ?? $program->currency ?? 'USD',
+                (float) ($data['discount_amount'] ?? 0),
+                $data['discount_id'] ?? null,
+            ];
+        }
+
+        return [
+            0.0,
+            $data['currency'] ?? 'USD',
+            (float) ($data['discount_amount'] ?? 0),
+            $data['discount_id'] ?? null,
+        ];
     }
 
     /**
