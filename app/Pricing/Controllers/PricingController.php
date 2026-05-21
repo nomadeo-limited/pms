@@ -5,6 +5,7 @@ namespace App\Pricing\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Discount;
 use App\Models\PricingRule;
+use App\Models\Unit;
 use App\Pricing\Requests\StoreDiscountRequest;
 use App\Pricing\Requests\StorePricingRuleRequest;
 use App\Pricing\Requests\UpdatePricingRuleRequest;
@@ -12,6 +13,7 @@ use App\Pricing\UseCases\CalculatePriceUseCase;
 use App\Tenant\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -78,8 +80,32 @@ class PricingController extends Controller
     public function storeRule(StorePricingRuleRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $organizerId = $this->tenantContext->getOrganizerId();
 
-        $validated['organizer_id'] = $this->tenantContext->getOrganizerId();
+        if ($validated['priceable_type'] === 'room_type') {
+            $units = Unit::where('property_id', $validated['property_id'])
+                ->where('room_type_id', $validated['priceable_id'])
+                ->where('is_active', true)
+                ->get();
+
+            if ($units->isEmpty()) {
+                return response()->json(['message' => 'No active units found for this room type in the selected property.'], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $base = array_diff_key($validated, array_flip(['priceable_type', 'priceable_id', 'property_id']));
+            $base['organizer_id'] = $organizerId;
+            $base['priceable_type'] = 'unit';
+
+            $created = DB::transaction(function () use ($units, $base) {
+                return $units->map(fn($unit) => PricingRule::create(
+                    array_merge($base, ['priceable_id' => $unit->id])
+                ));
+            });
+
+            return response()->json($created, Response::HTTP_CREATED);
+        }
+
+        $validated['organizer_id'] = $organizerId;
 
         return response()->json(PricingRule::create($validated), Response::HTTP_CREATED);
     }

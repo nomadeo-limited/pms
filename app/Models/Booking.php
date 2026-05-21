@@ -19,7 +19,7 @@ class Booking extends Model
     protected $fillable = [
         'organizer_id', 'property_id', 'program_id', 'customer_id',
         'check_in_date', 'check_out_date', 'nights', 'guests',
-        'status', 'payment_status', 'total_price', 'currency',
+        'status', 'payment_status', 'total_price', 'tax_amount', 'currency',
         'discount_id', 'discount_amount', 'notes', 'source', 'external_id', 'created_by',
     ];
 
@@ -29,6 +29,7 @@ class Booking extends Model
             'check_in_date' => 'date',
             'check_out_date' => 'date',
             'total_price' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
             'discount_amount' => 'decimal:2',
         ];
     }

@@ -18,6 +18,9 @@ Route::prefix('v1')->middleware(['auth:api', 'resolve.tenant'])->group(function 
     require base_path('routes/api_v1/payments.php');
     require base_path('routes/api_v1/staff.php');
     require base_path('routes/api_v1/reporting.php');
+    require base_path('routes/api_v1/housekeeping.php');
+    require base_path('routes/api_v1/front-desk.php');
+    require base_path('routes/api_v1/tax-rates.php');
 });
 
 Route::prefix('v1/integration')->middleware(['integration.token', 'throttle:120,1'])->group(function () {

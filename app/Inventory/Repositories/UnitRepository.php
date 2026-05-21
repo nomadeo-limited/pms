@@ -27,6 +27,11 @@ class UnitRepository implements UnitRepositoryInterface
                     ->where('check_in_date', '<', $checkOut)
                     ->where('check_out_date', '>', $checkIn);
             })
+            ->whereDoesntHave('blocks', function ($query) use ($checkIn, $checkOut) {
+                $query->where('is_active', true)
+                    ->where('start_date', '<', $checkOut)
+                    ->where('end_date', '>', $checkIn);
+            })
             ->get();
     }
 

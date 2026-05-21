@@ -6,6 +6,7 @@ use App\Models\AvailabilityRule;
 use App\Models\Booking;
 use App\Models\BookingRule;
 use App\Models\Program;
+use App\Models\TaxRate;
 use App\Models\Unit;
 use App\Pricing\UseCases\CalculatePriceUseCase;
 use App\Tenant\TenantContext;
@@ -32,9 +33,10 @@ class CreateBookingUseCase
         $this->validateBookingRules($data, $nights, $checkIn, $units);
 
         $guests = $data['guests'] ?? 1;
-        [$totalPrice, $currency, $discountAmount, $discountId] = $this->resolvePrice($data, $program, $guests);
+        [$totalPrice, $currency, $discountAmount, $discountId, $pricePerNightMap] = $this->resolvePrice($data, $program, $guests, $units);
+        $taxAmount = $this->calculateTax($data['property_id'], $totalPrice);
 
-        return DB::transaction(function () use ($data, $nights, $createdBy, $units, $program, $totalPrice, $currency, $discountAmount, $discountId, $guests) {
+        return DB::transaction(function () use ($data, $nights, $createdBy, $units, $program, $totalPrice, $taxAmount, $currency, $discountAmount, $discountId, $guests, $pricePerNightMap) {
 
             $booking = Booking::create([
                 'organizer_id' => $this->tenantContext->getOrganizerId(),
@@ -48,6 +50,7 @@ class CreateBookingUseCase
                 'status' => 'pending',
                 'payment_status' => 'unpaid',
                 'total_price' => $totalPrice,
+                'tax_amount' => $taxAmount,
                 'currency' => $currency,
                 'discount_id' => $discountId,
                 'discount_amount' => $discountAmount,
@@ -60,7 +63,7 @@ class CreateBookingUseCase
             foreach ($units as $unitData) {
                 $booking->units()->attach($unitData['unit_id'], [
                     'guests' => $unitData['guests'] ?? 1,
-                    'price_per_night' => $unitData['price_per_night'] ?? 0,
+                    'price_per_night' => $unitData['price_per_night'] ?? $pricePerNightMap[$unitData['unit_id']] ?? 0,
                 ]);
             }
 
@@ -100,14 +103,31 @@ class CreateBookingUseCase
         });
     }
 
-    /**
-     * Resolves total price, currency, discount amount, and discount id.
-     * Priority: explicit total_price > pricing rule (seasonal) > base_price × guests.
-     *
-     * @return array{0: float, 1: string, 2: float, 3: string|null}
-     */
-    private function resolvePrice(array $data, ?Program $program, int $guests): array
+    private function calculateTax(string $propertyId, float $totalPrice): float
     {
+        $taxes = TaxRate::where('property_id', $propertyId)
+            ->where('is_active', true)
+            ->where('is_inclusive', false)
+            ->get();
+
+        $taxAmount = 0.0;
+        foreach ($taxes as $tax) {
+            $taxAmount += ($tax->rate / 100) * $totalPrice;
+        }
+
+        return round($taxAmount, 2);
+    }
+
+    /**
+     * Resolves total price, currency, discount amount, discount id, and per-unit price map.
+     * Priority: explicit total_price > pricing rule (program or unit) > base_price × guests.
+     *
+     * @return array{0: float, 1: string, 2: float, 3: string|null, 4: array<string, float>}
+     */
+    private function resolvePrice(array $data, ?Program $program, int $guests, array $units): array
+    {
+        $noPrice = [0.0, $data['currency'] ?? 'USD', 0.0, null, []];
+
         // Caller supplied an explicit price — honour it as-is.
         if (isset($data['total_price'])) {
             return [
@@ -115,11 +135,11 @@ class CreateBookingUseCase
                 $data['currency'] ?? $program?->currency ?? 'USD',
                 (float) ($data['discount_amount'] ?? 0),
                 $data['discount_id'] ?? null,
+                [],
             ];
         }
 
         if ($program) {
-            // Check for a pricing rule (seasonal overrides, special rates).
             $result = $this->calculatePrice->execute(
                 'program', $program->id,
                 $data['check_in_date'], $data['check_out_date'],
@@ -134,6 +154,7 @@ class CreateBookingUseCase
                     $result['currency'],
                     (float) ($result['discount_amount'] ?? 0),
                     $result['discount_applied']['id'] ?? ($data['discount_id'] ?? null),
+                    [],
                 ];
             }
 
@@ -147,14 +168,41 @@ class CreateBookingUseCase
                 $data['currency'] ?? $program->currency ?? 'USD',
                 (float) ($data['discount_amount'] ?? 0),
                 $data['discount_id'] ?? null,
+                [],
             ];
         }
 
+        // Direct unit booking — sum pricing rules per unit.
+        $totalPrice = 0.0;
+        $currency = $data['currency'] ?? 'USD';
+        $pricePerNightMap = [];
+        $nights = Carbon::parse($data['check_in_date'])->diffInDays($data['check_out_date']);
+
+        foreach ($units as $unitData) {
+            $result = $this->calculatePrice->execute(
+                'unit', $unitData['unit_id'],
+                $data['check_in_date'], $data['check_out_date'],
+                $unitData['guests'] ?? 1,
+                null,
+                $data['discount_id'] ?? null,
+            );
+
+            if ($result['total_price'] !== null) {
+                $totalPrice += (float) $result['total_price'];
+                $currency = $result['currency'];
+                // Derive price_per_night from the rule for the invoice pivot
+                $pricePerNightMap[$unitData['unit_id']] = $nights > 0
+                    ? round((float) $result['total_price'] / $nights, 2)
+                    : (float) $result['total_price'];
+            }
+        }
+
         return [
-            0.0,
-            $data['currency'] ?? 'USD',
+            $totalPrice,
+            $currency,
             (float) ($data['discount_amount'] ?? 0),
             $data['discount_id'] ?? null,
+            $pricePerNightMap,
         ];
     }
 

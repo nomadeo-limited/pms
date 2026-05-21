@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Unit extends Model
 {
@@ -47,5 +48,10 @@ class Unit extends Model
     {
         return $this->belongsToMany(Booking::class, 'booking_units')
             ->withPivot('guests', 'price_per_night');
+    }
+
+    public function blocks(): HasMany
+    {
+        return $this->hasMany(UnitBlock::class);
     }
 }

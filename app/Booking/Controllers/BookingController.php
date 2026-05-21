@@ -8,7 +8,11 @@ use App\Booking\Requests\UpdateBookingRequest;
 use App\Booking\UseCases\CreateBookingUseCase;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\TaxRate;
+use App\Models\UnitHousekeeping;
+use App\Tenant\TenantContext;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Response;
@@ -89,6 +93,11 @@ class BookingController extends Controller
 
         $booking = $this->createBooking->execute($validated, auth('api')->id());
 
+        if ($booking->customer?->email) {
+            \Illuminate\Support\Facades\Mail::to($booking->customer->email)
+                ->queue(new \App\Mail\BookingConfirmationMail($booking));
+        }
+
         return response()->json($booking, Response::HTTP_CREATED);
     }
 
@@ -119,9 +128,71 @@ class BookingController extends Controller
             return response()->json(['message' => 'Booking not found.'], Response::HTTP_NOT_FOUND);
         }
 
+        $previousStatus = $booking->status;
         $booking->update($request->validated());
+        $newStatus = $booking->fresh()->status;
+
+        if ($previousStatus !== $newStatus && in_array($newStatus, ['checked_in', 'checked_out'])) {
+            $this->syncHousekeeping($booking->fresh(), $newStatus);
+        }
 
         return response()->json($booking->fresh()->load(['customer', 'property', 'units', 'addOns']));
+    }
+
+    private function syncHousekeeping(Booking $booking, string $newStatus): void
+    {
+        $booking->loadMissing('units');
+        $organizerId = app(TenantContext::class)->getOrganizerId();
+        $today = Carbon::today()->toDateString();
+        $housekeepingStatus = $newStatus === 'checked_in' ? 'occupied' : 'dirty';
+
+        foreach ($booking->units as $unit) {
+            UnitHousekeeping::updateOrCreate(
+                ['unit_id' => $unit->id, 'date' => $today],
+                [
+                    'status'       => $housekeepingStatus,
+                    'property_id'  => $booking->property_id,
+                    'organizer_id' => $organizerId,
+                ]
+            );
+        }
+    }
+
+    public function invoice(string $id): JsonResponse
+    {
+        $booking = Booking::with(['customer', 'property', 'program', 'units', 'addOns'])->find($id);
+        if (!$booking) {
+            return response()->json(['message' => 'Booking not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $accommodationSubtotal = $booking->units->sum(fn($u) => $u->pivot->price_per_night * $booking->nights);
+        $addOnsSubtotal = $booking->addOns->sum(fn($a) => $a->pivot->total_price);
+        $discountAmount = (float) ($booking->discount_amount ?? 0);
+        $totalBeforeTax = $accommodationSubtotal + $addOnsSubtotal - $discountAmount;
+        $taxAmount = (float) ($booking->tax_amount ?? 0);
+
+        $taxLines = TaxRate::where('property_id', $booking->property_id)
+            ->where('is_active', true)
+            ->get()
+            ->map(fn($t) => [
+                'name' => $t->name,
+                'rate' => $t->rate,
+                'amount' => round((float) $t->rate / 100 * $totalBeforeTax, 2),
+            ]);
+
+        return response()->json([
+            'booking_id' => $booking->id,
+            'line_items' => [
+                ['description' => 'Accommodation', 'amount' => $accommodationSubtotal],
+                ['description' => 'Add-ons', 'amount' => $addOnsSubtotal],
+                ['description' => 'Discount', 'amount' => -$discountAmount],
+            ],
+            'tax_lines' => $taxLines,
+            'total_before_tax' => $totalBeforeTax,
+            'tax_amount' => $taxAmount,
+            'total_price' => (float) $booking->total_price,
+            'currency' => $booking->currency,
+        ]);
     }
 
     #[OA\Get(path: '/bookings/calendar', summary: 'Get booking calendar view', security: [['bearerAuth' => []]], tags: ['Bookings'],

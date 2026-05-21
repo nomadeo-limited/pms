@@ -73,6 +73,11 @@ class PaymentController extends Controller
 
         $this->updateBookingPaymentStatus($booking);
 
+        if ($validated['status'] === 'completed' && $booking->customer?->email) {
+            \Illuminate\Support\Facades\Mail::to($booking->customer->email)
+                ->queue(new \App\Mail\PaymentReceiptMail($payment, $booking->load('customer', 'property')));
+        }
+
         return response()->json($payment, Response::HTTP_CREATED);
     }
 
