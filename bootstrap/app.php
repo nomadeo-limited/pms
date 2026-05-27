@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthorizeStaffRoleUpdate;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\ValidateIntegrationToken;
 use Illuminate\Auth\AuthenticationException;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'resolve.tenant' => ResolveTenant::class,
             'integration.token' => ValidateIntegrationToken::class,
+            'staff.role.authorize' => AuthorizeStaffRoleUpdate::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

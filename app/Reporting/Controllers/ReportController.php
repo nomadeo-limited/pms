@@ -37,13 +37,21 @@ class ReportController extends Controller
 
         $bookings = $query->get();
 
+        $byDate = $bookings->groupBy('check_in_date')
+            ->map(fn ($group, $date) => [
+                'date' => $date,
+                'bookings' => $group->count(),
+                'nights' => $group->sum('nights'),
+                'guests' => $group->sum('guests'),
+            ])
+            ->sortBy('date')
+            ->values();
+
         return response()->json([
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
             'total_bookings' => $bookings->count(),
             'total_nights' => $bookings->sum('nights'),
             'total_guests' => $bookings->sum('guests'),
-            'by_status' => $bookings->groupBy('status')->map->count(),
+            'by_date' => $byDate,
         ]);
     }
 
@@ -67,12 +75,25 @@ class ReportController extends Controller
 
         $payments = $query->get();
 
+        $byCurrency = $payments->groupBy('currency')
+            ->map(fn ($group, $currency) => [
+                'currency' => $currency,
+                'total' => $group->sum('amount'),
+                'payments' => $group->count(),
+            ])
+            ->values();
+
+        $byMethod = $payments->groupBy('method')
+            ->map(fn ($group, $method) => [
+                'method' => $method,
+                'total' => $group->sum('amount'),
+                'payments' => $group->count(),
+            ])
+            ->values();
+
         return response()->json([
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'total_revenue' => $payments->sum('amount'),
-            'by_currency' => $payments->groupBy('currency')->map->sum('amount'),
-            'by_method' => $payments->groupBy('method')->map->count(),
+            'by_currency' => $byCurrency,
+            'by_method' => $byMethod,
         ]);
     }
 
@@ -88,12 +109,27 @@ class ReportController extends Controller
 
         $bookings = Booking::whereBetween('created_at', [$request->start_date, $request->end_date . ' 23:59:59'])->get();
 
+        $byStatus = $bookings->groupBy('status')
+            ->map->count()
+            ->map(fn ($count, $status) => ['status' => $status, 'count' => $count])
+            ->values();
+
+        $bySource = $bookings->groupBy('source')
+            ->map->count()
+            ->map(fn ($count, $source) => ['source' => $source, 'count' => $count])
+            ->values();
+
+        $byMonth = $bookings->groupBy(fn ($b) => substr($b->created_at, 0, 7))
+            ->map->count()
+            ->map(fn ($count, $month) => ['month' => $month, 'count' => $count])
+            ->sortBy('month')
+            ->values();
+
         return response()->json([
-            'total' => $bookings->count(),
-            'by_status' => $bookings->groupBy('status')->map->count(),
-            'by_source' => $bookings->groupBy('source')->map->count(),
-            'average_nights' => round($bookings->avg('nights'), 1),
-            'average_guests' => round($bookings->avg('guests'), 1),
+            'total_bookings' => $bookings->count(),
+            'by_status' => $byStatus,
+            'by_source' => $bySource,
+            'by_month' => $byMonth,
         ]);
     }
 
@@ -109,17 +145,17 @@ class ReportController extends Controller
 
         $newCustomers = Customer::whereBetween('created_at', [$request->start_date, $request->end_date . ' 23:59:59'])->count();
 
-        $topNationalities = Customer::select('nationality', DB::raw('count(*) as total'))
+        $topNationalities = Customer::select('nationality', DB::raw('count(*) as count'))
             ->whereNotNull('nationality')
             ->groupBy('nationality')
-            ->orderByDesc('total')
+            ->orderByDesc('count')
             ->limit(10)
             ->get();
 
         return response()->json([
             'new_customers' => $newCustomers,
-            'top_nationalities' => $topNationalities,
             'total_customers' => Customer::count(),
+            'top_nationalities' => $topNationalities,
         ]);
     }
 }

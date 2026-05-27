@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Organizer;
 use App\Models\User;
 use App\Staff\Requests\InviteStaffRequest;
+use App\Staff\Requests\UpdateStaffPasswordRequest;
 use App\Staff\Requests\UpdateStaffRoleRequest;
 use App\Tenant\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -33,14 +34,14 @@ class StaffController extends Controller
         return response()->json($staff);
     }
 
-    #[OA\Post(path: '/staff/invite', summary: 'Invite a staff member', security: [['bearerAuth' => []]], tags: ['Staff'],
-        requestBody: new OA\RequestBody(required: true,
-            content: new OA\JsonContent(required: ['name', 'email', 'role'],
-                properties: [
-                    new OA\Property(property: 'name', type: 'string'),
-                    new OA\Property(property: 'email', type: 'string', format: 'email'),
-                    new OA\Property(property: 'role', type: 'string', enum: ['organizer_admin', 'organizer_staff']),
-                ])),
+    #[OA\Post(path: '/staff/invite', summary: 'Invite a staff member', security: [['bearerAuth' => []]], requestBody: new OA\RequestBody(required: true,
+        content: new OA\JsonContent(required: ['name', 'email', 'role'],
+            properties: [
+                new OA\Property(property: 'name', type: 'string'),
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'role', type: 'string', enum: ['organizer_admin', 'organizer_staff']),
+            ])),
+        tags: ['Staff'],
         responses: [
             new OA\Response(response: 201, description: 'Staff member invited'),
             new OA\Response(response: 422, description: 'Validation error'),
@@ -74,11 +75,24 @@ class StaffController extends Controller
         ], Response::HTTP_CREATED);
     }
 
-    #[OA\Put(path: '/staff/{userId}/role', summary: 'Update staff role', security: [['bearerAuth' => []]], tags: ['Staff'],
+    #[OA\Put(path: '/staff/{userId}/role',
+        summary: 'Update staff role',
+        security: [['bearerAuth' => []]],
+        requestBody:
+            new OA\RequestBody(
+                required: true,
+                content:
+                    new OA\JsonContent(
+                        required: ['role'],
+                        properties: [
+                            new OA\Property(
+                                property: 'role',
+                                type: 'string',
+                                enum: ['organizer_admin', 'organizer_staff'])]
+                    )
+            ),
+        tags: ['Staff'],
         parameters: [new OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid'))],
-        requestBody: new OA\RequestBody(required: true,
-            content: new OA\JsonContent(required: ['role'],
-                properties: [new OA\Property(property: 'role', type: 'string', enum: ['organizer_admin', 'organizer_staff'])])),
         responses: [new OA\Response(response: 200, description: 'Role updated'), new OA\Response(response: 404, description: 'Not found')])]
     public function updateRole(UpdateStaffRoleRequest $request, string $userId): JsonResponse
     {
@@ -90,6 +104,31 @@ class StaffController extends Controller
         $user->syncRoles([$request->role]);
 
         return response()->json($user->load('roles'));
+    }
+
+    #[OA\Put(path: '/staff/{userId}/password',
+        summary: 'Update staff password',
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true,
+            content: new OA\JsonContent(required: ['password', 'password_confirmation'],
+                properties: [
+                    new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
+                ])),
+        tags: ['Staff'],
+        parameters: [new OA\Parameter(name: 'userId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid'))],
+        responses: [new OA\Response(response: 204, description: 'Password updated'), new OA\Response(response: 404, description: 'Not found')])]
+    public function updatePassword(UpdateStaffPasswordRequest $request, string $userId): JsonResponse
+    {
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $user->password = $request->password;
+        $user->save();
+
+        return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 
     #[OA\Delete(path: '/staff/{userId}', summary: 'Remove a staff member', security: [['bearerAuth' => []]], tags: ['Staff'],

@@ -34,6 +34,21 @@ class CreateBookingUseCase
 
         $guests = $data['guests'] ?? 1;
         [$totalPrice, $currency, $discountAmount, $discountId, $pricePerNightMap] = $this->resolvePrice($data, $program, $guests, $units);
+
+        // For program bookings resolvePrice returns no per-unit map; distribute
+        // the total across units proportionally by guest count so the invoice
+        // accommodation line is correct.
+        if ($program && empty($pricePerNightMap) && $totalPrice > 0 && count($units) > 0) {
+            $nights = Carbon::parse($data['check_in_date'])->diffInDays($data['check_out_date']);
+            $totalGuests = array_sum(array_column($units, 'guests')) ?: count($units);
+            foreach ($units as $unitData) {
+                $share = ($unitData['guests'] ?? 1) / $totalGuests;
+                $pricePerNightMap[$unitData['unit_id']] = $nights > 0
+                    ? round($totalPrice * $share / $nights, 2)
+                    : round($totalPrice * $share, 2);
+            }
+        }
+
         $taxAmount = $this->calculateTax($data['property_id'], $totalPrice);
 
         return DB::transaction(function () use ($data, $nights, $createdBy, $units, $program, $totalPrice, $taxAmount, $currency, $discountAmount, $discountId, $guests, $pricePerNightMap) {
